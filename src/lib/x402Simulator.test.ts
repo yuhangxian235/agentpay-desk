@@ -2,13 +2,16 @@ import { describe, expect, it } from "vitest";
 import { handleProtectedResource } from "./protectedResourceApi";
 import {
   agents,
+  buildReconciliationEvents,
   createAuthorization,
   createChallenge,
   createLedgerEntry,
   evaluateSigner,
   evaluateRisk,
   ledgerToCsv,
+  rotateApiKey,
   resources,
+  starterApiKeys,
   starterLedger,
 } from "./x402Simulator";
 
@@ -140,5 +143,29 @@ describe("x402 simulator", () => {
       status: "expired",
       note: "Wallet signer approval expired",
     });
+  });
+
+  it("builds reconciliation events from ledger outcomes", () => {
+    const events = buildReconciliationEvents(starterLedger);
+
+    expect(events[0]).toMatchObject({
+      paymentId: starterLedger[0].id,
+      status: "delivered",
+      type: "settlement.received",
+    });
+    expect(events[2]).toMatchObject({
+      paymentId: starterLedger[2].id,
+      status: "pending",
+      type: "payment.held",
+    });
+  });
+
+  it("rotates an active merchant API key without changing revoked keys", () => {
+    const rotated = rotateApiKey(starterApiKeys, starterApiKeys[0].id);
+
+    expect(rotated[0].status).toBe("rotating");
+    expect(rotated[0].prefix).toMatch(/^ak_live_[0-9a-f]+$/);
+    expect(rotated[0].prefix).not.toBe(starterApiKeys[0].prefix);
+    expect(rotated[1]).toEqual(starterApiKeys[1]);
   });
 });

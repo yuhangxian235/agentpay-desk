@@ -14,6 +14,7 @@ handleProtectedResource({ agentId, resourceId, network, paymentHeader })
 Production replacement:
 
 - Protect each paid API route with x402 seller middleware.
+- Authenticate merchant-owned endpoints with scoped API keys before returning paid data.
 - Set the accepted network, USDC asset, pay-to account, and exact amount per resource.
 - Return `402 Payment Required` when the request does not include a valid payment.
 - Return `X-PAYMENT-RESPONSE` after settlement verification.
@@ -41,13 +42,29 @@ Current boundary:
 
 ```text
 createLedgerEntry(agent, resource, network, status, riskNote)
+buildReconciliationEvents(ledger)
 ```
 
 Production replacement:
 
 - Persist invoice id, agent wallet, endpoint id, amount, network, settlement response, payload hash, and policy verdict.
-- Add reconciliation jobs for pending settlement, refunds, duplicate payments, and failed facilitator responses.
+- Add reconciliation jobs and webhook events for pending settlement, refunds, duplicate payments, held payments, and failed facilitator responses.
 - Export CSV or accounting events for merchant operations.
+
+## API keys
+
+Current boundary:
+
+```text
+starterApiKeys
+rotateApiKey(keys, keyId)
+```
+
+Production replacement:
+
+- Store hashed API keys with merchant id, endpoint scopes, environment, status, and rotation history.
+- Enforce key scope before protected resources are served.
+- Add key revocation, grace-period rotation, usage metering, and audit logs.
 
 ## Risk policy
 
@@ -67,6 +84,6 @@ Production replacement:
 
 - Connect a real wallet/signature provider for a demo buyer.
 - Store ledger data in SQLite, Supabase, or Postgres.
-- Add a merchant API key model for paid resources.
+- Replace the simulated merchant API key registry with persisted keys and real auth middleware.
 - Add webhook verification for settlement events.
 - Deploy the frontend and a small API service separately.

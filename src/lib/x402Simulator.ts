@@ -92,6 +92,26 @@ export type LedgerEntry = {
   riskNote: string;
 };
 
+export type MerchantApiKey = {
+  id: string;
+  name: string;
+  prefix: string;
+  resourceIds: string[];
+  status: "active" | "rotating" | "revoked";
+  lastUsedAt: string;
+  requests30d: number;
+};
+
+export type ReconciliationEvent = {
+  id: string;
+  createdAt: string;
+  detail: string;
+  paymentId: string;
+  resourceName: string;
+  status: "delivered" | "pending" | "failed";
+  type: "payment.held" | "settlement.received";
+};
+
 export type ExchangeLine = {
   id: string;
   tone: "request" | "challenge" | "signature" | "success" | "blocked";
@@ -222,6 +242,36 @@ export const starterLedger: LedgerEntry[] = [
     createdAt: minutesAgo(67),
     settlementRef: "rule_allowlist",
     riskNote: "Agent is not allowlisted",
+  },
+];
+
+export const starterApiKeys: MerchantApiKey[] = [
+  {
+    id: "key_prod_data",
+    name: "Production data APIs",
+    prefix: "ak_live_7Qm9",
+    resourceIds: ["rwa-yield", "wallet-risk"],
+    status: "active",
+    lastUsedAt: minutesAgo(9),
+    requests30d: 1842,
+  },
+  {
+    id: "key_ops_payables",
+    name: "Payables ops APIs",
+    prefix: "ak_live_D4p2",
+    resourceIds: ["invoice-scan"],
+    status: "active",
+    lastUsedAt: minutesAgo(23),
+    requests30d: 411,
+  },
+  {
+    id: "key_routes_beta",
+    name: "Routes beta",
+    prefix: "ak_test_5Vx1",
+    resourceIds: ["fx-route"],
+    status: "rotating",
+    lastUsedAt: minutesAgo(96),
+    requests30d: 78,
   },
 ];
 
@@ -361,6 +411,47 @@ export function createLedgerEntry(
     settlementRef: status === "settled" ? `set_0x${randomToken(4)}` : "policy_block",
     riskNote,
   };
+}
+
+export function buildReconciliationEvents(entries: LedgerEntry[]): ReconciliationEvent[] {
+  return entries.slice(0, 6).map((entry) => {
+    if (entry.status === "settled") {
+      return {
+        id: `evt_${entry.id}`,
+        createdAt: entry.createdAt,
+        detail: `Settlement ${entry.settlementRef} delivered to merchant ledger`,
+        paymentId: entry.id,
+        resourceName: entry.resourceName,
+        status: "delivered",
+        type: "settlement.received",
+      };
+    }
+
+    return {
+      id: `evt_${entry.id}`,
+      createdAt: entry.createdAt,
+      detail: entry.riskNote,
+      paymentId: entry.id,
+      resourceName: entry.resourceName,
+      status: "pending",
+      type: "payment.held",
+    };
+  });
+}
+
+export function rotateApiKey(keys: MerchantApiKey[], keyId: string): MerchantApiKey[] {
+  return keys.map((key) => {
+    if (key.id !== keyId || key.status === "revoked") {
+      return key;
+    }
+
+    return {
+      ...key,
+      prefix: `${key.prefix.slice(0, 8)}${randomToken(4)}`,
+      status: "rotating",
+      lastUsedAt: new Date().toISOString(),
+    };
+  });
 }
 
 export function createPayload(resource: ApiResource, settlementRef: string) {

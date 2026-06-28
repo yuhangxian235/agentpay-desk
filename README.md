@@ -1,6 +1,6 @@
 # AgentPay Desk
 
-Stablecoin payment desk for AI agents buying paid API resources with an x402-style `402 Payment Required` challenge, wallet approval states, signed retry, merchant ledger, and risk controls.
+Stablecoin payment desk for AI agents buying paid API resources with an x402-style `402 Payment Required` challenge, wallet approval states, signed retry, merchant ledger, API keys, webhook reconciliation, and risk controls.
 
 Live demo: https://agentpay-desk.vercel.app
 
@@ -18,6 +18,7 @@ The demo models a paid HTTP API flow:
 4. The agent signs and retries with `X-PAYMENT` when approval succeeds.
 5. The seller returns data and an `X-PAYMENT-RESPONSE`.
 6. The merchant ledger records settlement, policy blocks, and signer blocks.
+7. Merchant ops tracks API keys and webhook-style reconciliation events.
 
 This version uses a local simulator instead of moving real USDC. That keeps the demo safe and easy to run while preserving the integration boundaries for a production x402 client, wallet signer, seller middleware, facilitator, and ledger service.
 
@@ -43,8 +44,10 @@ This version uses a local simulator instead of moving real USDC. That keeps the 
 - Wallet signer mock with Auto, Review, Reject, and Expire approval states.
 - Merchant ledger for settled and blocked API calls.
 - Merchant ledger CSV export for lightweight accounting and reconciliation.
+- Merchant API key registry with rotate-state simulation and per-resource scopes.
+- Webhook-style reconciliation feed for delivered settlements and held payments.
 - Risk controls for allowlisting, autopay, settlement network, and per-call spend caps.
-- Unit-tested payment requirement creation, authorization payloads, signer approval states, policy blocks, and settlement records.
+- Unit-tested payment requirement creation, authorization payloads, signer approval states, policy blocks, API key rotation, reconciliation events, and settlement records.
 - Responsive dashboard UI for desktop and mobile.
 
 ## Tech stack
@@ -84,7 +87,8 @@ npm run build
 4. Switch Wallet signer to `Reject` or `Expire` and rerun to show that failed approval stops before funds can move.
 5. Select `Edge Crawler` and run the flow again to show policy blocking for a non-allowlisted agent.
 6. Lower the spend cap below the endpoint price to show per-call risk enforcement.
-7. Click `Export CSV` to download the merchant ledger for reconciliation.
+7. Show Merchant ops: API key scopes, key rotation, and webhook events for settled or held payments.
+8. Click `Export CSV` to download the merchant ledger for reconciliation.
 
 ## Architecture
 
@@ -94,7 +98,7 @@ src/
   App.css                  Responsive payment-operations interface
   lib/protectedResourceApi.ts
                            Shared protected-resource API handler
-  lib/x402Simulator.ts     x402 challenge, signer approval, payment authorization, risk policy, ledger helpers
+  lib/x402Simulator.ts     x402 challenge, signer approval, payment authorization, risk policy, API keys, reconciliation, ledger helpers
   lib/x402Simulator.test.ts
 api/
   protected-resource.ts    Vercel serverless API route
@@ -112,7 +116,7 @@ High-level path:
 1. Replace `src/lib/x402Simulator.ts` with real seller middleware and buyer client wiring.
 2. Protect paid API routes and return exact USDC payment requirements.
 3. Wrap agent requests with an x402-aware client and wallet signer approval flow.
-4. Persist settlement references, invoice metadata, agent policy outcomes, and payload hashes.
+4. Persist settlement references, API keys, invoice metadata, agent policy outcomes, and payload hashes.
 5. Add webhook reconciliation for failed settlement, refunds, duplicate payments, and accounting exports.
 
 Relevant docs:
@@ -144,6 +148,6 @@ vercel --prod
 ## Resume bullets
 
 - Built an x402-style stablecoin payment desk for AI agents buying paid API resources.
-- Implemented a real protected API route with 402 challenge handling, wallet signer approval states, signed payment retry validation, merchant ledger, and risk-policy checks in React + TypeScript.
-- Added unit tests for payment requirement creation, signer decisions, authorization payloads, protected API responses, policy blocks, and settlement records.
-- Designed a responsive dashboard for agent budgets, USDC-style payment authorization, failed signer approvals, paid payload delivery, CSV export, and merchant reconciliation.
+- Implemented a real protected API route with 402 challenge handling, wallet signer approval states, signed payment retry validation, merchant ledger, API key rotation, webhook reconciliation, and risk-policy checks in React + TypeScript.
+- Added unit tests for payment requirement creation, signer decisions, authorization payloads, protected API responses, policy blocks, API key rotation, reconciliation events, and settlement records.
+- Designed a responsive dashboard for agent budgets, USDC-style payment authorization, failed signer approvals, paid payload delivery, merchant API keys, CSV export, and reconciliation events.

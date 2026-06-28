@@ -27,6 +27,7 @@ import {
   type RiskSettings,
   type SignerMode,
   agents,
+  buildReconciliationEvents,
   createAuthorization,
   createChallenge,
   createLedgerEntry,
@@ -38,6 +39,8 @@ import {
   merchant,
   money,
   resources,
+  rotateApiKey,
+  starterApiKeys,
   starterLedger,
 } from "./lib/x402Simulator";
 
@@ -88,6 +91,7 @@ function App() {
   const [payload, setPayload] = useState<Record<string, unknown> | null>(null);
   const [signerMode, setSignerMode] = useState<SignerMode>("auto");
   const [signerState, setSignerState] = useState<SignerState>("ready");
+  const [apiKeys, setApiKeys] = useState(starterApiKeys);
 
   const selectedAgent = agents.find((agent) => agent.id === selectedAgentId) ?? agents[0];
   const selectedResource =
@@ -109,6 +113,7 @@ function App() {
     .reduce((sum, entry) => sum + entry.amountUsd, 0);
   const policyPreview = evaluateRisk(selectedAgent, selectedResource, ledger, riskSettings);
   const signerCopy = signerStateCopy(signerState, signerMode);
+  const reconciliationEvents = useMemo(() => buildReconciliationEvents(ledger), [ledger]);
 
   async function runPurchase() {
     if (isRunning) {
@@ -331,6 +336,7 @@ function App() {
     setPayload(null);
     setPhase("idle");
     setSignerState("ready");
+    setApiKeys(starterApiKeys);
   }
 
   function exportLedgerCsv() {
@@ -656,6 +662,65 @@ function App() {
             </div>
           </div>
         </article>
+
+        <article className="panel operations-panel">
+          <PanelHeader
+            icon={<KeyRound size={19} />}
+            kicker="Merchant ops"
+            title="API keys & webhooks"
+            detail="Access control and settlement reconciliation"
+          />
+
+          <div className="ops-stack">
+            <div className="ops-block">
+              <div className="ops-heading">
+                <span>API keys</span>
+                <b>{apiKeys.length} keys</b>
+              </div>
+              <div className="api-key-list">
+                {apiKeys.map((apiKey) => (
+                  <article className={`api-key-row ${apiKey.status}`} key={apiKey.id}>
+                    <div>
+                      <strong>{apiKey.name}</strong>
+                      <span>{apiKey.prefix}...</span>
+                      <small>{resourceNames(apiKey.resourceIds)}</small>
+                    </div>
+                    <div className="key-meta">
+                      <b>{apiKey.status}</b>
+                      <small>{apiKey.requests30d.toLocaleString()} calls</small>
+                    </div>
+                    <button
+                      className="mini-action"
+                      type="button"
+                      onClick={() => setApiKeys((keys) => rotateApiKey(keys, apiKey.id))}
+                    >
+                      Rotate
+                    </button>
+                  </article>
+                ))}
+              </div>
+            </div>
+
+            <div className="ops-block">
+              <div className="ops-heading">
+                <span>Webhook events</span>
+                <b>{reconciliationEvents.length} recent</b>
+              </div>
+              <div className="event-list">
+                {reconciliationEvents.map((event) => (
+                  <article className={`event-row ${event.status}`} key={event.id}>
+                    <div>
+                      <strong>{event.type}</strong>
+                      <span>{event.resourceName}</span>
+                      <small>{event.detail}</small>
+                    </div>
+                    <b>{event.status}</b>
+                  </article>
+                ))}
+              </div>
+            </div>
+          </div>
+        </article>
       </section>
     </main>
   );
@@ -805,6 +870,12 @@ function signerStateCopy(
 
 function modeLabel(mode: SignerMode): string {
   return signerModes.find((item) => item.id === mode)?.label ?? "Auto";
+}
+
+function resourceNames(resourceIds: string[]): string {
+  return resourceIds
+    .map((id) => resources.find((resource) => resource.id === id)?.name ?? id)
+    .join(", ");
 }
 
 function protectedResourceUrl(agentId: string, resourceId: string, network: Network): string {
