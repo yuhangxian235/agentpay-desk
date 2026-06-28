@@ -1,24 +1,32 @@
 :root {
-  --amber: #a8621a;
-  --amber-soft: #fff1d7;
-  --blue: #2a71ff;
-  --blue-soft: #e8f0ff;
-  --green: #14966d;
-  --green-soft: #e5f7ee;
-  --ink: #17191d;
-  --line: #d7ddd2;
-  --line-strong: #aeb9ad;
+  --amber: #ffb86b;
+  --amber-soft: rgba(255, 184, 107, 0.16);
+  --aqua: #78f7ff;
+  --blue: #72a7ff;
+  --blue-soft: rgba(114, 167, 255, 0.16);
+  --coral: #ff6d8d;
+  --green: #48f0b4;
+  --green-soft: rgba(72, 240, 180, 0.15);
+  --ink: #f7fbff;
+  --line: rgba(180, 217, 230, 0.18);
+  --line-strong: rgba(210, 242, 255, 0.32);
+  --liquid-1: #4df0d3;
+  --liquid-2: #7c8cff;
+  --liquid-3: #ff7aa8;
+  --liquid-4: #d8ff7a;
   --mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-  --muted: #6f7770;
-  --muted-strong: #4d5750;
-  --panel: #fffefa;
-  --paper: #f4f7f1;
-  --red: #bd3e4a;
-  --red-soft: #ffe9ec;
+  --muted: rgba(223, 238, 243, 0.58);
+  --muted-strong: rgba(238, 248, 252, 0.76);
+  --panel: rgba(11, 17, 22, 0.72);
+  --panel-strong: rgba(16, 24, 30, 0.86);
+  --paper: rgba(255, 255, 255, 0.055);
+  --red: #ff6d8d;
+  --red-soft: rgba(255, 109, 141, 0.14);
   color: var(--ink);
-  background: var(--paper);
+  background: #07100f;
   font-family:
-    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    "Space Grotesk", Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -31,20 +39,68 @@
 
 html {
   min-width: 320px;
+  min-height: 100%;
   background:
-    linear-gradient(rgba(23, 25, 29, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(23, 25, 29, 0.03) 1px, transparent 1px),
-    var(--paper);
-  background-size: 36px 36px;
+    linear-gradient(135deg, rgba(120, 247, 255, 0.08), transparent 34%),
+    linear-gradient(315deg, rgba(255, 109, 141, 0.08), transparent 30%),
+    #07100f;
 }
 
 body {
+  position: relative;
   min-width: 320px;
   min-height: 100vh;
   margin: 0;
+  overflow-x: hidden;
   background:
-    linear-gradient(120deg, rgba(42, 113, 255, 0.08), transparent 34%),
-    linear-gradient(280deg, rgba(20, 150, 109, 0.08), transparent 30%);
+    linear-gradient(rgba(255, 255, 255, 0.022) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.018) 1px, transparent 1px),
+    radial-gradient(ellipse at 50% -20%, rgba(120, 247, 255, 0.13), transparent 40%),
+    #07100f;
+  background-size:
+    44px 44px,
+    44px 44px,
+    auto,
+    auto;
+}
+
+body::before {
+  position: fixed;
+  inset: -34vh -18vw auto -18vw;
+  z-index: 0;
+  height: 78vh;
+  pointer-events: none;
+  content: "";
+  background:
+    conic-gradient(
+      from 160deg at 34% 54%,
+      transparent 0deg,
+      rgba(77, 240, 211, 0.58) 34deg,
+      rgba(124, 140, 255, 0.42) 82deg,
+      transparent 126deg,
+      rgba(255, 122, 168, 0.4) 184deg,
+      rgba(216, 255, 122, 0.3) 236deg,
+      transparent 302deg,
+      rgba(77, 240, 211, 0.38) 360deg
+    );
+  clip-path: polygon(0 27%, 13% 18%, 28% 34%, 42% 11%, 57% 29%, 72% 15%, 86% 33%, 100% 21%, 100% 72%, 82% 61%, 63% 78%, 48% 58%, 30% 76%, 14% 61%, 0 73%);
+  filter: blur(30px) saturate(1.4);
+  opacity: 0.62;
+  transform: translate3d(0, 0, 0);
+  animation: liquid-flow 24s ease-in-out infinite alternate;
+}
+
+body::after {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  content: "";
+  background:
+    linear-gradient(180deg, rgba(7, 16, 15, 0.18), rgba(7, 16, 15, 0.74)),
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.018) 0 1px, transparent 1px 3px);
+  mix-blend-mode: screen;
+  opacity: 0.34;
 }
 
 button,
@@ -53,10 +109,24 @@ input {
 }
 
 button {
-  border-radius: 0;
+  border-radius: 8px;
 }
 
 ::selection {
-  background: var(--ink);
-  color: white;
+  background: var(--liquid-1);
+  color: #06100f;
+}
+
+@keyframes liquid-flow {
+  0% {
+    transform: translate3d(-4vw, -1vh, 0) rotate(-4deg) scale(1);
+  }
+
+  55% {
+    transform: translate3d(4vw, 3vh, 0) rotate(3deg) scale(1.08);
+  }
+
+  100% {
+    transform: translate3d(7vw, -2vh, 0) rotate(-2deg) scale(1.03);
+  }
 }

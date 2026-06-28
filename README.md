@@ -1,6 +1,6 @@
 # AgentPay Desk
 
-Stablecoin payment desk for AI agents buying paid API resources with an x402-style `402 Payment Required` challenge, wallet approval states, signed retry, merchant ledger, API keys, webhook reconciliation, and risk controls.
+Stablecoin payment desk for AI agents buying paid API resources with an x402-style `402 Payment Required` challenge, wallet approval states, signed retry, merchant ledger, API keys, webhook reconciliation, risk controls, and a liquid-glass operations UI.
 
 Live demo: https://agentpay-desk.vercel.app
 
@@ -50,7 +50,7 @@ This version uses a local simulator instead of moving real USDC. That keeps the 
 - Webhook-style reconciliation feed for delivered settlements and held payments.
 - Risk controls for allowlisting, autopay, settlement network, and per-call spend caps.
 - Unit-tested payment requirement creation, authorization payloads, signer approval states, policy blocks, API key rotation, reconciliation events, and settlement records.
-- Responsive dashboard UI for desktop and mobile.
+- Liquid-glass responsive dashboard UI for desktop and mobile.
 
 ## Tech stack
 
@@ -103,7 +103,7 @@ The `Live Smoke` workflow can also be run manually and checks the production Ver
 ```text
 src/
   App.tsx                  Dashboard, controls, protocol feed, merchant ledger
-  App.css                  Responsive payment-operations interface
+  App.css                  Liquid-glass payment-operations interface
   lib/protectedResourceApi.ts
                            Shared protected-resource API handler
   lib/x402Simulator.ts     x402 challenge, signer approval, payment authorization, risk policy, API keys, reconciliation, ledger helpers
@@ -161,4 +161,4 @@ vercel --prod
 - Built an x402-style stablecoin payment desk for AI agents buying paid API resources.
 - Implemented a real protected API route with 402 challenge handling, wallet signer approval states, signed payment retry validation, merchant ledger, API key rotation, webhook reconciliation, and risk-policy checks in React + TypeScript.
 - Added unit and Playwright E2E tests for payment requirement creation, signer decisions, authorization payloads, protected API responses, policy blocks, API key rotation, CSV export, mobile layout, reconciliation events, and settlement records.
-- Designed a responsive dashboard for agent budgets, USDC-style payment authorization, failed signer approvals, paid payload delivery, merchant API keys, CSV export, and reconciliation events.
+- Designed a liquid-glass responsive dashboard for agent budgets, USDC-style payment authorization, failed signer approvals, paid payload delivery, merchant API keys, CSV export, and reconciliation events.
