@@ -56,6 +56,7 @@ This version uses a local simulator instead of moving real USDC. That keeps the 
 - TypeScript
 - Vite
 - Vitest
+- Playwright
 - Lucide React
 
 ## Run locally
@@ -76,6 +77,7 @@ http://127.0.0.1:5173/
 ```bash
 npm run lint
 npm test
+npm run test:e2e
 npm run build
 ```
 
@@ -100,6 +102,9 @@ src/
                            Shared protected-resource API handler
   lib/x402Simulator.ts     x402 challenge, signer approval, payment authorization, risk policy, API keys, reconciliation, ledger helpers
   lib/x402Simulator.test.ts
+tests/
+  e2e/payment-flow.spec.ts
+                           Browser E2E coverage for payment and merchant ops flows
 api/
   protected-resource.ts    Vercel serverless API route
 docs/
@@ -149,5 +154,5 @@ vercel --prod
 
 - Built an x402-style stablecoin payment desk for AI agents buying paid API resources.
 - Implemented a real protected API route with 402 challenge handling, wallet signer approval states, signed payment retry validation, merchant ledger, API key rotation, webhook reconciliation, and risk-policy checks in React + TypeScript.
-- Added unit tests for payment requirement creation, signer decisions, authorization payloads, protected API responses, policy blocks, API key rotation, reconciliation events, and settlement records.
+- Added unit and Playwright E2E tests for payment requirement creation, signer decisions, authorization payloads, protected API responses, policy blocks, API key rotation, reconciliation events, and settlement records.
 - Designed a responsive dashboard for agent budgets, USDC-style payment authorization, failed signer approvals, paid payload delivery, merchant API keys, CSV export, and reconciliation events.

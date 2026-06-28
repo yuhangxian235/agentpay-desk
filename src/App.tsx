@@ -478,6 +478,7 @@ function App() {
               {signerModes.map((mode) => (
                 <button
                   className={signerMode === mode.id ? "active" : ""}
+                  data-testid={`signer-mode-${mode.id}`}
                   disabled={isRunning}
                   key={mode.id}
                   type="button"
@@ -541,6 +542,7 @@ function App() {
 
           <button
             className="primary-action"
+            data-testid="run-purchase"
             type="button"
             onClick={runPurchase}
             disabled={isRunning}
@@ -560,7 +562,7 @@ function App() {
 
           <PhaseRail phase={phase} />
 
-          <div className="exchange-feed">
+          <div className="exchange-feed" data-testid="exchange-feed">
             {exchange.map((line) => (
               <article className={`exchange-line ${line.tone}`} key={line.id}>
                 <div className="line-meta">
@@ -602,7 +604,7 @@ function App() {
             <span>{ledger.length} records</span>
           </div>
 
-          <div className="ledger-list">
+          <div className="ledger-list" data-testid="ledger-list">
             {ledger.map((entry) => (
               <article className="ledger-row" key={entry.id}>
                 <div className={`status-dot ${entry.status}`}>
@@ -623,7 +625,7 @@ function App() {
       </section>
 
       <section className="bottom-grid">
-        <article className="panel payload-panel">
+        <article className="panel payload-panel" data-testid="payload-panel">
           <PanelHeader
             icon={<DatabaseZap size={19} />}
             kicker="Response"
@@ -663,7 +665,7 @@ function App() {
           </div>
         </article>
 
-        <article className="panel operations-panel">
+        <article className="panel operations-panel" data-testid="operations-panel">
           <PanelHeader
             icon={<KeyRound size={19} />}
             kicker="Merchant ops"
@@ -691,6 +693,7 @@ function App() {
                     </div>
                     <button
                       className="mini-action"
+                      data-testid={`rotate-key-${apiKey.id}`}
                       type="button"
                       onClick={() => setApiKeys((keys) => rotateApiKey(keys, apiKey.id))}
                     >
@@ -706,7 +709,7 @@ function App() {
                 <span>Webhook events</span>
                 <b>{reconciliationEvents.length} recent</b>
               </div>
-              <div className="event-list">
+              <div className="event-list" data-testid="event-list">
                 {reconciliationEvents.map((event) => (
                   <article className={`event-row ${event.status}`} key={event.id}>
                     <div>
