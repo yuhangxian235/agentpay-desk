@@ -369,6 +369,35 @@ export function createPayload(resource: ApiResource, settlementRef: string) {
   };
 }
 
+export function ledgerToCsv(entries: LedgerEntry[]): string {
+  const headers = [
+    "payment_id",
+    "created_at",
+    "status",
+    "agent_name",
+    "agent_wallet",
+    "resource_name",
+    "amount_usd",
+    "network",
+    "settlement_ref",
+    "risk_note",
+  ];
+  const rows = entries.map((entry) => [
+    entry.id,
+    entry.createdAt,
+    entry.status,
+    entry.agentName,
+    entry.wallet,
+    entry.resourceName,
+    entry.amountUsd.toFixed(2),
+    entry.network,
+    entry.settlementRef,
+    entry.riskNote,
+  ]);
+
+  return [headers, ...rows].map((row) => row.map(csvField).join(",")).join("\n");
+}
+
 export function money(value: number): string {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -394,6 +423,14 @@ export function formatTime(value: string): string {
 
 function usdToUnits(value: number): string {
   return String(Math.round(value * 1_000_000));
+}
+
+function csvField(value: string): string {
+  if (/[",\n\r]/.test(value)) {
+    return `"${value.replace(/"/g, '""')}"`;
+  }
+
+  return value;
 }
 
 function randomToken(length: number): string {

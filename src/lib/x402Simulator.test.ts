@@ -5,6 +5,7 @@ import {
   createChallenge,
   createLedgerEntry,
   evaluateRisk,
+  ledgerToCsv,
   resources,
   starterLedger,
 } from "./x402Simulator";
@@ -70,5 +71,22 @@ describe("x402 simulator", () => {
     expect(entry.status).toBe("settled");
     expect(entry.amountUsd).toBe(resources[2].priceUsd);
     expect(entry.settlementRef).toMatch(/^set_0x[0-9a-f]+$/);
+  });
+
+  it("exports ledger entries as escaped CSV", () => {
+    const csv = ledgerToCsv([
+      {
+        ...starterLedger[0],
+        resourceName: 'Invoice scan, "priority"',
+        riskNote: "Within budget, approved",
+      },
+    ]);
+
+    expect(csv.split("\n")[0]).toBe(
+      "payment_id,created_at,status,agent_name,agent_wallet,resource_name,amount_usd,network,settlement_ref,risk_note",
+    );
+    expect(csv).toContain('"Invoice scan, ""priority"""');
+    expect(csv).toContain('"Within budget, approved"');
+    expect(csv).toContain(",0.12,");
   });
 });

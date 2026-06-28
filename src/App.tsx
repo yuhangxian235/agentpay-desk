@@ -6,6 +6,7 @@ import {
   Code2,
   Copy,
   DatabaseZap,
+  Download,
   Play,
   ReceiptText,
   RefreshCcw,
@@ -28,6 +29,7 @@ import {
   createPayload,
   evaluateRisk,
   formatTime,
+  ledgerToCsv,
   merchant,
   money,
   resources,
@@ -217,6 +219,19 @@ function App() {
     setExchange(starterExchange);
     setPayload(null);
     setPhase("idle");
+  }
+
+  function exportLedgerCsv() {
+    const csv = ledgerToCsv(ledger);
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `agentpay-ledger-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
   }
 
   return (
@@ -432,6 +447,14 @@ function App() {
             <button className="icon-button small" type="button" aria-label="Copy pay-to account">
               <Copy size={15} />
             </button>
+          </div>
+
+          <div className="ledger-toolbar">
+            <button className="secondary-action" type="button" onClick={exportLedgerCsv}>
+              <Download size={16} />
+              <span>Export CSV</span>
+            </button>
+            <span>{ledger.length} records</span>
           </div>
 
           <div className="ledger-list">

@@ -32,6 +32,7 @@ This version uses a local simulator instead of moving real USDC. That keeps the 
 - Paid API marketplace for RWA yield data, wallet risk scoring, invoice scanning, and stablecoin route quotes.
 - x402-style HTTP exchange panel with `402`, `X-PAYMENT`, and `X-PAYMENT-RESPONSE`.
 - Merchant ledger for settled and blocked API calls.
+- Merchant ledger CSV export for lightweight accounting and reconciliation.
 - Risk controls for allowlisting, autopay, settlement network, and per-call spend caps.
 - Unit-tested payment requirement creation, authorization payloads, policy blocks, and settlement records.
 - Responsive dashboard UI for desktop and mobile.
@@ -71,6 +72,7 @@ npm run build
 2. Point out the first unauthenticated request, the `402 Payment Required` challenge, the signed `X-PAYMENT` retry, and the final `X-PAYMENT-RESPONSE`.
 3. Select `Edge Crawler` and run the flow again to show policy blocking for a non-allowlisted agent.
 4. Lower the spend cap below the endpoint price to show per-call risk enforcement.
+5. Click `Export CSV` to download the merchant ledger for reconciliation.
 
 ## Architecture
 
@@ -128,4 +130,4 @@ vercel --prod
 - Built an x402-style stablecoin payment desk for AI agents buying paid API resources.
 - Implemented 402 challenge handling, signed payment retry simulation, merchant ledger, and risk-policy checks in React + TypeScript.
 - Added unit tests for payment requirement creation, authorization payloads, policy blocks, and settlement records.
-- Designed a responsive dashboard for agent budgets, USDC-style payment authorization, paid payload delivery, and merchant reconciliation.
+- Designed a responsive dashboard for agent budgets, USDC-style payment authorization, paid payload delivery, CSV export, and merchant reconciliation.
