@@ -21,6 +21,7 @@ import {
   type ExchangeLine,
   type LedgerEntry,
   type Network,
+  type PaymentChallenge,
   type RiskSettings,
   agents,
   createAuthorization,
@@ -37,6 +38,14 @@ import {
 } from "./lib/x402Simulator";
 
 type Phase = "idle" | "request" | "challenge" | "signature" | "settled" | "blocked";
+
+type PaidApiBody = {
+  data?: Record<string, unknown>;
+  error?: string;
+  paid?: number;
+  payment?: Record<string, unknown>;
+  settlementRef?: string;
+};
 
 const networks: Network[] = ["base-sepolia", "base", "polygon"];
 
@@ -95,14 +104,17 @@ function App() {
     setExchange([]);
     setPhase("request");
 
+    const apiUrl = protectedResourceUrl(selectedAgent.id, selectedResource.id, network);
+
     appendExchange({
       tone: "request",
       label: "GET",
       method: "GET",
-      title: `${selectedResource.path}`,
+      title: apiUrl,
       body: JSON.stringify(
         {
           agent: selectedAgent.name,
+          route: selectedResource.path,
           wallet: selectedAgent.wallet,
           accept: "application/json",
           payment: null,
@@ -113,14 +125,30 @@ function App() {
     });
 
     await sleep(500);
-    const challenge = createChallenge(selectedAgent, selectedResource, network);
+    const challengeResponse = await fetch(apiUrl, {
+      headers: {
+        Accept: "application/json",
+      },
+    });
+    const challenge =
+      challengeResponse.status === 402
+        ? ((await challengeResponse.json()) as PaymentChallenge)
+        : createChallenge(selectedAgent, selectedResource, network);
     setPhase("challenge");
     appendExchange({
       tone: "challenge",
       label: "402",
       status: 402,
       title: "Payment Required",
-      body: JSON.stringify(challenge, null, 2),
+      body: JSON.stringify(
+        {
+          status: challengeResponse.status,
+          "X-402-Version": challengeResponse.headers.get("X-402-Version"),
+          ...challenge,
+        },
+        null,
+        2,
+      ),
     });
 
     await sleep(650);
@@ -174,14 +202,22 @@ function App() {
     });
 
     await sleep(700);
-    const entry = createLedgerEntry(
-      selectedAgent,
-      selectedResource,
-      network,
-      "settled",
-      risk.note,
-    );
-    const nextPayload = createPayload(selectedResource, entry.settlementRef);
+    const paidResponse = await fetch(apiUrl, {
+      headers: {
+        Accept: "application/json",
+        "X-PAYMENT": authorization.header,
+      },
+    });
+    const paidBody = (await paidResponse.json()) as PaidApiBody;
+    const settlementRef =
+      paidResponse.headers.get("X-PAYMENT-RESPONSE") ??
+      paidBody.settlementRef ??
+      `client_${Date.now().toString(16).slice(-8)}`;
+    const entry = {
+      ...createLedgerEntry(selectedAgent, selectedResource, network, "settled", risk.note),
+      settlementRef,
+    };
+    const nextPayload = paidBody.data ?? createPayload(selectedResource, settlementRef);
     setLedger((items) => [entry, ...items]);
     setPayload(nextPayload);
     setPhase("settled");
@@ -192,9 +228,10 @@ function App() {
       title: "Resource delivered",
       body: JSON.stringify(
         {
-          "X-PAYMENT-RESPONSE": entry.settlementRef,
+          status: paidResponse.status,
+          "X-PAYMENT-RESPONSE": settlementRef,
           paid: money(entry.amountUsd),
-          data: nextPayload,
+          ...paidBody,
         },
         null,
         2,
@@ -624,6 +661,16 @@ function sleep(ms: number) {
   return new Promise((resolve) => {
     window.setTimeout(resolve, ms);
   });
+}
+
+function protectedResourceUrl(agentId: string, resourceId: string, network: Network): string {
+  const params = new URLSearchParams({
+    agentId,
+    resourceId,
+    network,
+  });
+
+  return `/api/protected-resource?${params.toString()}`;
 }
 
 export default App;

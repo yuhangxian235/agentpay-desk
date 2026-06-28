@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { handleProtectedResource } from "./protectedResourceApi";
 import {
   agents,
   createAuthorization,
@@ -88,5 +89,38 @@ describe("x402 simulator", () => {
     expect(csv).toContain('"Invoice scan, ""priority"""');
     expect(csv).toContain('"Within budget, approved"');
     expect(csv).toContain(",0.12,");
+  });
+
+  it("returns a 402 response when the protected API is called without payment", () => {
+    const response = handleProtectedResource({
+      agentId: agents[0].id,
+      resourceId: resources[0].id,
+      network: "base-sepolia",
+    });
+
+    expect(response.status).toBe(402);
+    expect(response.headers["X-402-Version"]).toBe("1");
+    expect(response.body.error).toBe("X-PAYMENT header is required");
+  });
+
+  it("returns paid data when the protected API receives a valid X-PAYMENT header", () => {
+    const challenge = handleProtectedResource({
+      agentId: agents[0].id,
+      resourceId: resources[0].id,
+      network: "base-sepolia",
+    });
+    const paymentChallenge = challenge.body as ReturnType<typeof createChallenge>;
+    const authorization = createAuthorization(agents[0], paymentChallenge.accepts[0]);
+    const paid = handleProtectedResource({
+      agentId: agents[0].id,
+      resourceId: resources[0].id,
+      network: "base-sepolia",
+      paymentHeader: authorization.header,
+    });
+
+    expect(paid.status).toBe(200);
+    expect(paid.headers["X-PAYMENT-RESPONSE"]).toMatch(/^api_[0-9a-f]+$/);
+    expect(paid.body.payment).toMatchObject({ validated: true, asset: "USDC" });
+    expect(paid.body.data).toMatchObject({ market: "tokenized_treasuries" });
   });
 });

@@ -1,13 +1,14 @@
 # Real x402 upgrade notes
 
-This demo keeps payments local and simulated. To turn it into a real x402 integration, replace the simulator boundaries below instead of rewriting the UI.
+This demo now includes a real `/api/protected-resource` route that returns HTTP `402 Payment Required` before a client retries with `X-PAYMENT`. It still keeps funds local and simulated. To turn it into a real x402 integration, replace the simulator boundaries below instead of rewriting the UI.
 
 ## Seller route
 
 Current boundary:
 
 ```text
-createChallenge(agent, resource, network)
+api/protected-resource.ts
+handleProtectedResource({ agentId, resourceId, network, paymentHeader })
 ```
 
 Production replacement:

@@ -30,7 +30,8 @@ This version uses a local simulator instead of moving real USDC. That keeps the 
 
 - AI agent buyer selection with wallet balance, daily limit, trust score, and allowlist state.
 - Paid API marketplace for RWA yield data, wallet risk scoring, invoice scanning, and stablecoin route quotes.
-- x402-style HTTP exchange panel with `402`, `X-PAYMENT`, and `X-PAYMENT-RESPONSE`.
+- x402-style HTTP exchange panel backed by a real `/api/protected-resource` route.
+- Server/API flow with `402`, `X-402-Version`, `X-PAYMENT`, and `X-PAYMENT-RESPONSE`.
 - Merchant ledger for settled and blocked API calls.
 - Merchant ledger CSV export for lightweight accounting and reconciliation.
 - Risk controls for allowlisting, autopay, settlement network, and per-call spend caps.
@@ -69,10 +70,11 @@ npm run build
 ## Demo script
 
 1. Click `Run x402 purchase` with `Quanta Scout` selected.
-2. Point out the first unauthenticated request, the `402 Payment Required` challenge, the signed `X-PAYMENT` retry, and the final `X-PAYMENT-RESPONSE`.
-3. Select `Edge Crawler` and run the flow again to show policy blocking for a non-allowlisted agent.
-4. Lower the spend cap below the endpoint price to show per-call risk enforcement.
-5. Click `Export CSV` to download the merchant ledger for reconciliation.
+2. Point out the first unauthenticated request to `/api/protected-resource`.
+3. Show the real HTTP `402 Payment Required` response, `X-402-Version`, signed `X-PAYMENT` retry, and final `X-PAYMENT-RESPONSE`.
+4. Select `Edge Crawler` and run the flow again to show policy blocking for a non-allowlisted agent.
+5. Lower the spend cap below the endpoint price to show per-call risk enforcement.
+6. Click `Export CSV` to download the merchant ledger for reconciliation.
 
 ## Architecture
 
@@ -80,8 +82,12 @@ npm run build
 src/
   App.tsx                  Dashboard, controls, protocol feed, merchant ledger
   App.css                  Responsive payment-operations interface
+  lib/protectedResourceApi.ts
+                           Shared protected-resource API handler
   lib/x402Simulator.ts     x402 challenge, payment authorization, risk policy, ledger helpers
   lib/x402Simulator.test.ts
+api/
+  protected-resource.ts    Vercel serverless API route
 docs/
   real-x402-upgrade.md     Notes for replacing the simulator with production wiring
   screenshots/             README screenshots
@@ -128,6 +134,6 @@ vercel --prod
 ## Resume bullets
 
 - Built an x402-style stablecoin payment desk for AI agents buying paid API resources.
-- Implemented 402 challenge handling, signed payment retry simulation, merchant ledger, and risk-policy checks in React + TypeScript.
-- Added unit tests for payment requirement creation, authorization payloads, policy blocks, and settlement records.
+- Implemented a real protected API route with 402 challenge handling, signed payment retry validation, merchant ledger, and risk-policy checks in React + TypeScript.
+- Added unit tests for payment requirement creation, authorization payloads, protected API responses, policy blocks, and settlement records.
 - Designed a responsive dashboard for agent budgets, USDC-style payment authorization, paid payload delivery, CSV export, and merchant reconciliation.
