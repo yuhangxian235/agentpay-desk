@@ -5,7 +5,7 @@ import {
   merchant,
   resources,
   agents,
-} from "./x402Simulator";
+} from "./x402Simulator.js";
 
 type ProtectedResourceInput = {
   agentId: string | null;

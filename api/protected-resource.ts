@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { handleProtectedResource } from "../src/lib/protectedResourceApi";
+import { handleProtectedResource } from "../src/lib/protectedResourceApi.js";
 
 export default function handler(request: IncomingMessage, response: ServerResponse) {
   if (request.method !== "GET") {
