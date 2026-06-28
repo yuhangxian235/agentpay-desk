@@ -10,6 +10,7 @@ export default defineConfig({
     timeout: 8_000,
   },
   use: {
+    acceptDownloads: true,
     baseURL: "http://127.0.0.1:5173",
     trace: "on-first-retry",
   },

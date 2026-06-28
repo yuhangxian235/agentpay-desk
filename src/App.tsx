@@ -597,7 +597,12 @@ function App() {
           </div>
 
           <div className="ledger-toolbar">
-            <button className="secondary-action" type="button" onClick={exportLedgerCsv}>
+            <button
+              className="secondary-action"
+              data-testid="export-ledger"
+              type="button"
+              onClick={exportLedgerCsv}
+            >
               <Download size={16} />
               <span>Export CSV</span>
             </button>

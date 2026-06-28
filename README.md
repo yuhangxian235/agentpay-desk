@@ -154,5 +154,5 @@ vercel --prod
 
 - Built an x402-style stablecoin payment desk for AI agents buying paid API resources.
 - Implemented a real protected API route with 402 challenge handling, wallet signer approval states, signed payment retry validation, merchant ledger, API key rotation, webhook reconciliation, and risk-policy checks in React + TypeScript.
-- Added unit and Playwright E2E tests for payment requirement creation, signer decisions, authorization payloads, protected API responses, policy blocks, API key rotation, reconciliation events, and settlement records.
+- Added unit and Playwright E2E tests for payment requirement creation, signer decisions, authorization payloads, protected API responses, policy blocks, API key rotation, CSV export, mobile layout, reconciliation events, and settlement records.
 - Designed a responsive dashboard for agent budgets, USDC-style payment authorization, failed signer approvals, paid payload delivery, merchant API keys, CSV export, and reconciliation events.
