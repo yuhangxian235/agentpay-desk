@@ -5,6 +5,7 @@ import {
   createAuthorization,
   createChallenge,
   createLedgerEntry,
+  evaluateSigner,
   evaluateRisk,
   ledgerToCsv,
   resources,
@@ -122,5 +123,22 @@ describe("x402 simulator", () => {
     expect(paid.headers["X-PAYMENT-RESPONSE"]).toMatch(/^api_[0-9a-f]+$/);
     expect(paid.body.payment).toMatchObject({ validated: true, asset: "USDC" });
     expect(paid.body.data).toMatchObject({ market: "tokenized_treasuries" });
+  });
+
+  it("models wallet signer approval states", () => {
+    expect(evaluateSigner("auto", agents[0], resources[0])).toMatchObject({
+      status: "approved",
+    });
+    expect(evaluateSigner("review", agents[0], resources[0])).toMatchObject({
+      status: "approved",
+    });
+    expect(evaluateSigner("reject", agents[0], resources[0])).toMatchObject({
+      status: "rejected",
+      note: "Wallet signer rejected authorization",
+    });
+    expect(evaluateSigner("expire", agents[0], resources[0])).toMatchObject({
+      status: "expired",
+      note: "Wallet signer approval expired",
+    });
   });
 });

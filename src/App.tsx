@@ -2,11 +2,13 @@ import {
   Activity,
   Bot,
   CheckCircle2,
+  Clock3,
   CircleDollarSign,
   Code2,
   Copy,
   DatabaseZap,
   Download,
+  KeyRound,
   Play,
   ReceiptText,
   RefreshCcw,
@@ -23,11 +25,13 @@ import {
   type Network,
   type PaymentChallenge,
   type RiskSettings,
+  type SignerMode,
   agents,
   createAuthorization,
   createChallenge,
   createLedgerEntry,
   createPayload,
+  evaluateSigner,
   evaluateRisk,
   formatTime,
   ledgerToCsv,
@@ -39,6 +43,8 @@ import {
 
 type Phase = "idle" | "request" | "challenge" | "signature" | "settled" | "blocked";
 
+type SignerState = "approved" | "expired" | "pending" | "ready" | "rejected";
+
 type PaidApiBody = {
   data?: Record<string, unknown>;
   error?: string;
@@ -48,6 +54,13 @@ type PaidApiBody = {
 };
 
 const networks: Network[] = ["base-sepolia", "base", "polygon"];
+
+const signerModes: Array<{ id: SignerMode; label: string }> = [
+  { id: "auto", label: "Auto" },
+  { id: "review", label: "Review" },
+  { id: "reject", label: "Reject" },
+  { id: "expire", label: "Expire" },
+];
 
 const starterExchange: ExchangeLine[] = [
   {
@@ -73,6 +86,8 @@ function App() {
   const [phase, setPhase] = useState<Phase>("idle");
   const [isRunning, setIsRunning] = useState(false);
   const [payload, setPayload] = useState<Record<string, unknown> | null>(null);
+  const [signerMode, setSignerMode] = useState<SignerMode>("auto");
+  const [signerState, setSignerState] = useState<SignerState>("ready");
 
   const selectedAgent = agents.find((agent) => agent.id === selectedAgentId) ?? agents[0];
   const selectedResource =
@@ -93,6 +108,7 @@ function App() {
     .filter((entry) => entry.agentId === selectedAgent.id)
     .reduce((sum, entry) => sum + entry.amountUsd, 0);
   const policyPreview = evaluateRisk(selectedAgent, selectedResource, ledger, riskSettings);
+  const signerCopy = signerStateCopy(signerState, signerMode);
 
   async function runPurchase() {
     if (isRunning) {
@@ -103,6 +119,7 @@ function App() {
     setPayload(null);
     setExchange([]);
     setPhase("request");
+    setSignerState("ready");
 
     const apiUrl = protectedResourceUrl(selectedAgent.id, selectedResource.id, network);
 
@@ -184,8 +201,64 @@ function App() {
     }
 
     const requirement = challenge.accepts[0];
-    const authorization = createAuthorization(selectedAgent, requirement);
     setPhase("signature");
+    setSignerState("pending");
+    appendExchange({
+      tone: "signature",
+      label: "Signer",
+      title: "Wallet approval pending",
+      body: JSON.stringify(
+        {
+          mode: signerMode,
+          wallet: selectedAgent.wallet,
+          amount: money(selectedResource.priceUsd),
+          resource: selectedResource.name,
+          validForSeconds: requirement.maxTimeoutSeconds,
+        },
+        null,
+        2,
+      ),
+    });
+
+    await sleep(signerMode === "review" ? 900 : 450);
+    const signerDecision = evaluateSigner(signerMode, selectedAgent, selectedResource);
+
+    if (signerDecision.status !== "approved") {
+      const blocked = createLedgerEntry(
+        selectedAgent,
+        selectedResource,
+        network,
+        "blocked",
+        signerDecision.note,
+      );
+      setLedger((items) => [blocked, ...items]);
+      setSignerState(signerDecision.status);
+      setPhase("blocked");
+      appendExchange({
+        tone: "blocked",
+        label: "Signer",
+        status: signerDecision.status === "expired" ? 408 : 401,
+        title:
+          signerDecision.status === "expired"
+            ? "Wallet authorization expired"
+            : "Wallet authorization rejected",
+        body: JSON.stringify(
+          {
+            mode: signerMode,
+            status: signerDecision.status,
+            reason: signerDecision.note,
+            wallet: selectedAgent.wallet,
+          },
+          null,
+          2,
+        ),
+      });
+      setIsRunning(false);
+      return;
+    }
+
+    setSignerState("approved");
+    const authorization = createAuthorization(selectedAgent, requirement);
     appendExchange({
       tone: "signature",
       label: "X-PAYMENT",
@@ -193,6 +266,7 @@ function App() {
       title: "Signed authorization attached",
       body: JSON.stringify(
         {
+          signer: signerDecision.note,
           header: `${authorization.header.slice(0, 54)}...`,
           payload: authorization.payload,
         },
@@ -256,6 +330,7 @@ function App() {
     setExchange(starterExchange);
     setPayload(null);
     setPhase("idle");
+    setSignerState("ready");
   }
 
   function exportLedgerCsv() {
@@ -388,6 +463,33 @@ function App() {
                   {item}
                 </button>
               ))}
+            </div>
+          </div>
+
+          <div className="section-block">
+            <div className="section-label">Wallet signer</div>
+            <div className="segmented-control signer-control" role="group" aria-label="Wallet signer mode">
+              {signerModes.map((mode) => (
+                <button
+                  className={signerMode === mode.id ? "active" : ""}
+                  disabled={isRunning}
+                  key={mode.id}
+                  type="button"
+                  onClick={() => {
+                    setSignerMode(mode.id);
+                    setSignerState("ready");
+                  }}
+                >
+                  {mode.label}
+                </button>
+              ))}
+            </div>
+            <div className={`signer-state ${signerState}`}>
+              {signerState === "pending" ? <Clock3 size={16} /> : <KeyRound size={16} />}
+              <span>
+                <strong>{signerCopy.title}</strong>
+                <small>{signerCopy.detail}</small>
+              </span>
             </div>
           </div>
 
@@ -661,6 +763,48 @@ function sleep(ms: number) {
   return new Promise((resolve) => {
     window.setTimeout(resolve, ms);
   });
+}
+
+function signerStateCopy(
+  state: SignerState,
+  mode: SignerMode,
+): { detail: string; title: string } {
+  if (state === "pending") {
+    return {
+      title: "Signature pending",
+      detail: mode === "review" ? "Manual review is simulating wallet approval." : "Signer is checking policy.",
+    };
+  }
+
+  if (state === "approved") {
+    return {
+      title: "Payment signed",
+      detail: "X-PAYMENT can be attached to the retry request.",
+    };
+  }
+
+  if (state === "rejected") {
+    return {
+      title: "Signature rejected",
+      detail: "Payment is blocked before funds can move.",
+    };
+  }
+
+  if (state === "expired") {
+    return {
+      title: "Approval expired",
+      detail: "The authorization window closed before signing.",
+    };
+  }
+
+  return {
+    title: "Signer ready",
+    detail: `${modeLabel(mode)} mode controls the next payment approval.`,
+  };
+}
+
+function modeLabel(mode: SignerMode): string {
+  return signerModes.find((item) => item.id === mode)?.label ?? "Auto";
 }
 
 function protectedResourceUrl(agentId: string, resourceId: string, network: Network): string {

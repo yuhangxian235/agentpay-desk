@@ -27,6 +27,18 @@ export type RiskSettings = {
   spendCapUsd: number;
 };
 
+export type SignerMode = "auto" | "review" | "reject" | "expire";
+
+export type SignerDecision =
+  | {
+      note: string;
+      status: "approved";
+    }
+  | {
+      note: string;
+      status: "expired" | "rejected";
+    };
+
 export type PaymentRequirement = {
   scheme: "exact";
   network: Network;
@@ -298,6 +310,34 @@ export function evaluateRisk(
   }
 
   return { allowed: true, note: agent.allowlisted ? "Allowlisted agent" : "Policy exception approved" };
+}
+
+export function evaluateSigner(mode: SignerMode, agent: Agent, resource: ApiResource): SignerDecision {
+  if (mode === "reject") {
+    return {
+      status: "rejected",
+      note: "Wallet signer rejected authorization",
+    };
+  }
+
+  if (mode === "expire") {
+    return {
+      status: "expired",
+      note: "Wallet signer approval expired",
+    };
+  }
+
+  if (mode === "review") {
+    return {
+      status: "approved",
+      note: `${agent.name} approved ${resource.name} after manual review`,
+    };
+  }
+
+  return {
+    status: "approved",
+    note: "Wallet signer auto-approved policy-compliant payment",
+  };
 }
 
 export function createLedgerEntry(

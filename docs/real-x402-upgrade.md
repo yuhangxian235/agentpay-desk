@@ -23,6 +23,7 @@ Production replacement:
 Current boundary:
 
 ```text
+evaluateSigner(mode, agent, resource)
 createAuthorization(agent, requirement)
 ```
 
@@ -30,7 +31,8 @@ Production replacement:
 
 - Wrap `fetch` with an x402-aware client.
 - Connect a wallet signer controlled by the agent policy layer.
-- Let the client read payment requirements, sign the payment payload, attach `X-PAYMENT`, and retry.
+- Model signer states for pending approval, manual review, rejection, expiry, and successful signature.
+- Let the client read payment requirements, request signer approval, sign the payment payload, attach `X-PAYMENT`, and retry.
 - Keep the existing spending-policy checks before signing.
 
 ## Ledger
@@ -59,11 +61,11 @@ Production replacement:
 
 - Enforce allowlists, per-agent daily budgets, per-endpoint caps, wallet balance checks, and merchant deny lists.
 - Add velocity checks across agents controlled by the same operator.
-- Require manual approval for high-risk endpoints or new wallets.
+- Require manual approval for high-risk endpoints or new wallets, and persist rejected or expired signer outcomes.
 
 ## Product next steps
 
-- Add wallet connection for a demo buyer.
+- Connect a real wallet/signature provider for a demo buyer.
 - Store ledger data in SQLite, Supabase, or Postgres.
 - Add a merchant API key model for paid resources.
 - Add webhook verification for settlement events.

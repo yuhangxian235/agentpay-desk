@@ -333,6 +333,65 @@
   color: white;
 }
 
+.segmented-control button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.signer-control {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.signer-state {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  gap: 9px;
+  align-items: center;
+  margin-top: 9px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--muted-strong);
+}
+
+.signer-state svg {
+  color: var(--blue);
+}
+
+.signer-state strong,
+.signer-state small {
+  display: block;
+}
+
+.signer-state strong {
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.signer-state small {
+  margin-top: 2px;
+  color: var(--muted-strong);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.signer-state.approved svg {
+  color: var(--green);
+}
+
+.signer-state.expired svg,
+.signer-state.rejected svg {
+  color: var(--red);
+}
+
+.signer-state.pending {
+  background: var(--amber-soft);
+}
+
+.signer-state.pending svg {
+  color: var(--amber);
+}
+
 .policy-slab {
   display: grid;
   gap: 10px;
