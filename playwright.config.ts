@@ -1,7 +1,10 @@
 import { defineConfig, devices } from "@playwright/test";
 
 const chromePath =
-  process.env.PLAYWRIGHT_CHROME_PATH ?? "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
+  process.env.CI
+    ? undefined
+    : (process.env.PLAYWRIGHT_CHROME_PATH ??
+      "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe");
 
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -25,9 +28,7 @@ export default defineConfig({
       name: "chrome",
       use: {
         ...devices["Desktop Chrome"],
-        launchOptions: {
-          executablePath: chromePath,
-        },
+        launchOptions: chromePath ? { executablePath: chromePath } : {},
       },
     },
   ],

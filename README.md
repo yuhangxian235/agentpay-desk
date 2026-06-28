@@ -4,6 +4,8 @@ Stablecoin payment desk for AI agents buying paid API resources with an x402-sty
 
 Live demo: https://agentpay-desk.vercel.app
 
+[![CI](https://github.com/yuhangxian235/agentpay-desk/actions/workflows/ci.yml/badge.svg)](https://github.com/yuhangxian235/agentpay-desk/actions/workflows/ci.yml)
+
 ![AgentPay Desk desktop screenshot](docs/screenshots/agentpay-desktop.png)
 
 ## Why this exists
@@ -80,6 +82,8 @@ npm test
 npm run test:e2e
 npm run build
 ```
+
+GitHub Actions runs the same checks on `main` pushes and pull requests.
 
 ## Demo script
 
