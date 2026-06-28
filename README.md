@@ -80,10 +80,12 @@ http://127.0.0.1:5173/
 npm run lint
 npm test
 npm run test:e2e
+npm run test:smoke
 npm run build
 ```
 
 GitHub Actions runs the same checks on `main` pushes and pull requests.
+The `Live Smoke` workflow can also be run manually and checks the production Vercel URL on a schedule.
 
 ## Demo script
 
