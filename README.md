@@ -27,6 +27,13 @@ This version uses a local simulator instead of moving real USDC. That keeps the 
 | --- | --- |
 | ![Desktop payment flow](docs/screenshots/agentpay-desktop.png) | ![Mobile responsive layout](docs/screenshots/agentpay-mobile.png) |
 
+## Demo walkthrough
+
+![90-second walkthrough preview](docs/demo/walkthrough-preview.png)
+
+- [90-second captioned walkthrough](docs/demo/agentpay-90s-walkthrough.mp4)
+- [Spoken script and shot list](docs/demo/90-second-walkthrough.md)
+
 ## Features
 
 - AI agent buyer selection with wallet balance, daily limit, trust score, and allowlist state.
