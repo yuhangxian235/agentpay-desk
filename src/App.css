@@ -926,6 +926,63 @@ pre {
   gap: 8px;
 }
 
+.storage-adapter {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+  padding: 11px;
+  border: 1px solid rgba(120, 247, 255, 0.16);
+  background: rgba(7, 15, 17, 0.5);
+}
+
+.storage-adapter svg {
+  margin-top: 2px;
+  color: var(--aqua);
+}
+
+.storage-adapter span,
+.storage-adapter b {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.storage-adapter span {
+  display: block;
+  color: var(--muted);
+}
+
+.storage-adapter strong {
+  display: block;
+  margin-top: 3px;
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.storage-adapter small {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted-strong);
+  font-size: 12px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.storage-adapter > b {
+  display: inline-block;
+  padding: 5px 7px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--muted-strong);
+}
+
+.storage-adapter.durable > b {
+  background: var(--green-soft);
+  color: var(--green);
+}
+
 .ops-heading {
   display: flex;
   align-items: center;

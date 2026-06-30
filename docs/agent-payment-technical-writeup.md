@@ -155,7 +155,9 @@ src/lib/merchantOpsStore.ts
 - `GET /api/merchant-ops?format=csv` for ledger export.
 - `POST /api/merchant-ops` with `append-ledger`, `rotate-key`, or `reset` actions.
 
-The current repository is an in-memory implementation. The important product-grade boundary is the repository interface: a durable Postgres, Supabase, SQLite, or Neon adapter can replace it without changing the UI flow.
+The repository now has two implementations: the default in-memory demo store and an optional file-backed JSON adapter for local durable storage. Set `MERCHANT_OPS_STORE=file` and optionally `MERCHANT_OPS_FILE=.agentpay/merchant-ops.json` to persist merchant state across local server restarts.
+
+The important product-grade boundary is the repository interface: a durable Postgres, Supabase, SQLite, or Neon adapter can replace the demo adapters without changing the UI flow.
 
 ## API Key Enforcement
 
@@ -194,7 +196,7 @@ The policy layer can block before the wallet signs. This is the key product idea
 
 The project has two levels of tests.
 
-Unit tests cover payment requirement creation, authorization payloads, API key scope enforcement, risk policy, signer states, ledger rows, merchant ops API actions, API key rotation, reconciliation events, audit events, and CSV export.
+Unit tests cover payment requirement creation, authorization payloads, API key scope enforcement, risk policy, signer states, ledger rows, merchant ops API actions, API key rotation, file-backed repository persistence, reconciliation events, audit events, and CSV export.
 
 Browser E2E tests cover:
 
@@ -207,7 +209,7 @@ Browser E2E tests cover:
 - Merchant audit trail updates.
 - Mobile layout without horizontal overflow.
 
-The CI workflow runs linting, unit tests, production build, and Playwright E2E. A separate smoke script checks the deployed homepage, protected API route, merchant ops API, and ledger CSV export.
+The CI workflow runs linting, unit tests, production build, and Playwright E2E. A separate smoke script checks the deployed homepage, protected API route, merchant ops API, storage metadata, and ledger CSV export.
 
 ## What Is Simulated
 
@@ -215,8 +217,8 @@ The demo does not move real USDC. These pieces are simulated:
 
 - Signature creation.
 - Facilitator settlement.
-- Durable ledger persistence.
-- Durable API key storage.
+- Production database persistence for ledger rows.
+- Production database persistence for API keys.
 - Webhook delivery.
 
 The value of the project is that each simulated piece has a clear replacement boundary. A real implementation would replace the internals without needing to redesign the product flow.
@@ -227,10 +229,9 @@ The next technical upgrades are:
 
 1. Replace `createChallenge` and `handleProtectedResource` internals with real x402 seller middleware.
 2. Replace `createAuthorization` with a real wallet signer or account-abstraction policy module.
-3. Replace `merchantOpsStore.ts` with a durable repository backed by Postgres, Supabase, SQLite, or Neon.
+3. Replace the demo adapters in `merchantOpsStore.ts` with a durable repository backed by Postgres, Supabase, SQLite, or Neon.
 4. Add webhook verification and retry handling.
-5. Add API-key scope enforcement before the protected resource is served.
-6. Store settlement references, payload hashes, invoice ids, and policy verdicts.
+5. Store settlement references, payload hashes, invoice ids, and policy verdicts.
 
 More detailed boundary notes are in [`real-x402-upgrade.md`](real-x402-upgrade.md).
 Product readiness notes are in [`product-grade-roadmap.md`](product-grade-roadmap.md).

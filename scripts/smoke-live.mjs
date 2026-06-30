@@ -18,6 +18,7 @@ async function main() {
   assert(script.includes("API keys & webhooks"), "Bundle missing Merchant ops copy");
   assert(script.includes("audit-list"), "Bundle missing merchant audit trail");
   assert(script.includes("export-ledger"), "Bundle missing CSV export test id");
+  assert(script.includes("storage-adapter"), "Bundle missing storage adapter status");
 
   const merchantOps = await fetchWithRetry(new URL("/api/merchant-ops", root), {
     headers: { Accept: "application/json" },
@@ -28,6 +29,10 @@ async function main() {
   assert(Array.isArray(merchantOpsBody.ledger), "Merchant ops state missing ledger");
   assert(Array.isArray(merchantOpsBody.apiKeys), "Merchant ops state missing API keys");
   assert(Array.isArray(merchantOpsBody.auditEvents), "Merchant ops state missing audit events");
+  assert(
+    merchantOpsBody.storage?.driver === "memory" || merchantOpsBody.storage?.driver === "file",
+    "Merchant ops state missing storage driver",
+  );
 
   const ledgerCsv = await fetchWithRetry(new URL("/api/merchant-ops?format=csv", root), {
     headers: { Accept: "text/csv" },

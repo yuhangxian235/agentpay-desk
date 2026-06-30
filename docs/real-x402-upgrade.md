@@ -51,7 +51,7 @@ Production replacement:
 - Persist invoice id, agent wallet, endpoint id, amount, network, settlement response, payload hash, and policy verdict.
 - Add reconciliation jobs and webhook events for pending settlement, refunds, duplicate payments, held payments, and failed facilitator responses.
 - Export CSV or accounting events for merchant operations.
-- Replace the in-memory merchant repository in `src/lib/merchantOpsStore.ts` with a durable database adapter.
+- Replace the demo merchant repository adapters in `src/lib/merchantOpsStore.ts` with a durable database adapter.
 
 ## API keys
 
@@ -87,7 +87,7 @@ Production replacement:
 ## Product next steps
 
 - Connect a real wallet/signature provider for a demo buyer.
-- Store ledger data in SQLite, Supabase, or Postgres.
+- Store ledger data in SQLite, Supabase, Neon, or Postgres.
 - Replace the simulated merchant API key registry with persisted keys and real auth middleware.
 - Add webhook verification for settlement events.
 - Deploy the frontend and a small API service separately.

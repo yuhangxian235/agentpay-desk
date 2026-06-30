@@ -1,5 +1,9 @@
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { handleMerchantOps } from "./merchantOpsApi";
+import { createFileMerchantOpsRepository } from "./merchantOpsStore";
 import { handleProtectedResource } from "./protectedResourceApi";
 import {
   type LedgerEntry,
@@ -215,12 +219,14 @@ describe("x402 simulator", () => {
     const state = result.body as {
       auditEvents: Array<{ action: string }>;
       ledger: LedgerEntry[];
+      storage: { driver: string };
       version: number;
     };
 
     expect(result.status).toBe(200);
     expect(state.ledger).toHaveLength(starterLedger.length);
     expect(state.auditEvents[0].action).toBe("state.reset");
+    expect(state.storage.driver).toBe("memory");
     expect(state.version).toBe(1);
   });
 
@@ -258,6 +264,39 @@ describe("x402 simulator", () => {
     expect(csv.status).toBe(200);
     expect(csv.headers["Content-Type"]).toContain("text/csv");
     expect(csv.body).toContain(entry.id);
+  });
+
+  it("persists merchant ops state through a file-backed repository", () => {
+    const directory = mkdtempSync(join(tmpdir(), "agentpay-desk-"));
+
+    try {
+      const filePath = join(directory, "merchant-ops.json");
+      const firstRepository = createFileMerchantOpsRepository(filePath);
+      const entry = createLedgerEntry(
+        agents[1],
+        resources[1],
+        "polygon",
+        "settled",
+        "Persisted through file adapter",
+      );
+
+      firstRepository.reset();
+      firstRepository.appendLedgerEntry(entry);
+
+      const secondRepository = createFileMerchantOpsRepository(filePath);
+      const state = secondRepository.readState();
+      const raw = JSON.parse(readFileSync(filePath, "utf8")) as {
+        ledger: LedgerEntry[];
+        schemaVersion: number;
+      };
+
+      expect(state.storage).toMatchObject({ driver: "file", durable: true });
+      expect(state.ledger[0]).toMatchObject({ id: entry.id, resourceId: entry.resourceId });
+      expect(raw.schemaVersion).toBe(1);
+      expect(raw.ledger[0].id).toBe(entry.id);
+    } finally {
+      rmSync(directory, { force: true, recursive: true });
+    }
   });
 
   it("rotates merchant API keys through the merchant ops API", () => {

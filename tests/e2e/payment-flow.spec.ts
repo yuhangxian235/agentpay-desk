@@ -69,6 +69,7 @@ test("merchant can rotate an API key", async ({ page }) => {
   await page.goto("/");
 
   const ops = page.getByTestId("operations-panel");
+  await expect(page.getByTestId("storage-adapter")).toContainText("In-memory demo");
   await expect(ops).toContainText("Production data APIs");
   await expect(ops).toContainText("active");
 

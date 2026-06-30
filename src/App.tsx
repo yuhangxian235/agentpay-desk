@@ -19,7 +19,11 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import "./App.css";
-import type { MerchantAuditEvent, MerchantOpsState } from "./lib/merchantOpsStore";
+import type {
+  MerchantAuditEvent,
+  MerchantOpsState,
+  MerchantOpsStorageInfo,
+} from "./lib/merchantOpsStore";
 import {
   type ExchangeLine,
   type LedgerEntry,
@@ -77,6 +81,13 @@ const starterExchange: ExchangeLine[] = [
   },
 ];
 
+const defaultStorageInfo: MerchantOpsStorageInfo = {
+  detail: "Server state has not synced yet",
+  driver: "memory",
+  durable: false,
+  label: "Pending sync",
+};
+
 function App() {
   const [selectedAgentId, setSelectedAgentId] = useState(agents[0].id);
   const [selectedResourceId, setSelectedResourceId] = useState(resources[0].id);
@@ -96,6 +107,7 @@ function App() {
   const [apiKeys, setApiKeys] = useState(starterApiKeys);
   const [auditEvents, setAuditEvents] = useState<MerchantAuditEvent[]>([]);
   const [opsSyncedAt, setOpsSyncedAt] = useState<string | null>(null);
+  const [storageInfo, setStorageInfo] = useState<MerchantOpsStorageInfo>(defaultStorageInfo);
 
   const selectedAgent = agents.find((agent) => agent.id === selectedAgentId) ?? agents[0];
   const selectedResource =
@@ -389,6 +401,7 @@ function App() {
     setLedger(state.ledger);
     setApiKeys(state.apiKeys);
     setAuditEvents(state.auditEvents);
+    setStorageInfo(state.storage ?? defaultStorageInfo);
     setOpsSyncedAt(state.updatedAt);
   }
 
@@ -795,6 +808,19 @@ function App() {
           />
 
           <div className="ops-stack">
+            <div
+              className={`storage-adapter ${storageInfo.durable ? "durable" : "demo"}`}
+              data-testid="storage-adapter"
+            >
+              <ServerCog size={16} />
+              <div>
+                <span>Storage adapter</span>
+                <strong>{storageInfo.label}</strong>
+                <small>{storageInfo.detail}</small>
+              </div>
+              <b>{storageInfo.durable ? "Durable" : "Demo"}</b>
+            </div>
+
             <div className="ops-block">
               <div className="ops-heading">
                 <span>API keys</span>

@@ -52,6 +52,7 @@ This version uses a local simulator instead of moving real USDC. That keeps the 
 - Protected API route enforces `X-API-Key` before returning a payment challenge.
 - Webhook-style reconciliation feed for delivered settlements and held payments.
 - Server-side merchant operations API for ledger rows, API keys, reconciliation events, CSV export, and audit trail.
+- Optional file-backed merchant ops repository for local durable storage.
 - Risk controls for allowlisting, autopay, settlement network, and per-call spend caps.
 - Unit-tested payment requirement creation, authorization payloads, signer approval states, policy blocks, merchant ops API, API key scope enforcement, reconciliation events, and settlement records.
 - Liquid-glass responsive dashboard UI for desktop and mobile.
@@ -77,6 +78,16 @@ Open:
 ```text
 http://127.0.0.1:5173/
 ```
+
+Optional local durable merchant state:
+
+```powershell
+$env:MERCHANT_OPS_STORE="file"
+$env:MERCHANT_OPS_FILE=".agentpay/merchant-ops.json"
+npm run dev
+```
+
+Without those variables, the app uses the in-memory demo repository so Vercel can run without external credentials.
 
 ## Quality checks
 
@@ -126,7 +137,7 @@ docs/
   screenshots/             README screenshots
 src/lib/
   merchantOpsApi.ts        Merchant ops API contract and validation
-  merchantOpsStore.ts      Replaceable merchant ops repository boundary
+  merchantOpsStore.ts      In-memory and file-backed merchant ops repository adapters
 ```
 
 ## Production upgrade path
@@ -138,7 +149,7 @@ High-level path:
 1. Replace `src/lib/x402Simulator.ts` with real seller middleware and buyer client wiring.
 2. Protect paid API routes and return exact USDC payment requirements.
 3. Wrap agent requests with an x402-aware client and wallet signer approval flow.
-4. Persist settlement references, API keys, invoice metadata, agent policy outcomes, and payload hashes.
+4. Replace the demo storage adapter with Postgres, Supabase, SQLite, or Neon for production persistence.
 5. Add webhook reconciliation for failed settlement, refunds, duplicate payments, and accounting exports.
 
 Relevant docs:
