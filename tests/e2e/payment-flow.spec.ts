@@ -1,6 +1,14 @@
 import { expect, test } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 
+test.beforeEach(async ({ request }) => {
+  await request.post("/api/merchant-ops", {
+    data: {
+      action: "reset",
+    },
+  });
+});
+
 test("auto signer completes the x402 payment flow", async ({ page }) => {
   await page.goto("/");
 
@@ -15,6 +23,7 @@ test("auto signer completes the x402 payment flow", async ({ page }) => {
   await expect(page.getByTestId("payload-panel")).toContainText("tokenized_treasuries");
   await expect(page.getByTestId("event-list")).toContainText("settlement.received");
   await expect(page.getByTestId("event-list")).toContainText(/api_[0-9a-f]+/);
+  await expect(page.getByTestId("audit-list")).toContainText("ledger.appended");
 });
 
 test("rejected signer blocks before X-PAYMENT is attached", async ({ page }) => {
@@ -67,6 +76,7 @@ test("merchant can rotate an API key", async ({ page }) => {
 
   await expect(ops).toContainText("rotating");
   await expect(ops).toContainText(/ak_live_[0-9a-f]{4}/);
+  await expect(page.getByTestId("audit-list")).toContainText("api_key.rotated");
 });
 
 test("merchant can export the ledger as CSV", async ({ page }) => {

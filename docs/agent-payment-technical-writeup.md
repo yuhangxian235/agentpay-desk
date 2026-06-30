@@ -6,7 +6,7 @@ AgentPay Desk is a product prototype for a near-future workflow: autonomous agen
 - A seller API that can require payment over HTTP.
 - A wallet and policy layer that decides whether the agent is allowed to pay.
 
-The project is intentionally small enough to review quickly, but it preserves production-shaped boundaries: a protected API route, a 402 challenge, signer approval states, signed retry, merchant ledger, API key rotation, webhook-style reconciliation, CSV export, and browser E2E coverage.
+The project is intentionally small enough to review quickly, but it preserves production-shaped boundaries: a protected API route, a merchant operations API route, a 402 challenge, signer approval states, signed retry, merchant ledger, API key rotation, webhook-style reconciliation, CSV export, audit trail, and browser E2E coverage.
 
 Live demo: https://agentpay-desk.vercel.app
 
@@ -121,7 +121,8 @@ The `runPurchase` function coordinates the payment flow:
 4. Runs the wallet signer state.
 5. Creates `X-PAYMENT` only after approval.
 6. Retries the protected API route with the signed authorization.
-7. Updates the paid payload, merchant ledger, and reconciliation feed.
+7. Posts the settlement or held-payment result to `/api/merchant-ops`.
+8. Updates the paid payload, merchant ledger, reconciliation feed, and audit trail.
 
 This makes the UI useful for demoing both success and failure paths.
 
@@ -134,8 +135,25 @@ Agent payments are not just a buyer problem. The merchant needs operational cont
 - Settled and held payment records.
 - Webhook-style reconciliation events.
 - CSV export for accounting.
+- Audit events for reset, ledger append, and key rotation.
 
 That is why the right panel shows both `Merchant ledger` and `API keys & webhooks`. It helps the demo read like infrastructure, not only a toy client flow.
+
+The merchant operations backend is:
+
+```text
+api/merchant-ops.ts
+src/lib/merchantOpsApi.ts
+src/lib/merchantOpsStore.ts
+```
+
+`/api/merchant-ops` supports:
+
+- `GET /api/merchant-ops` for merchant state.
+- `GET /api/merchant-ops?format=csv` for ledger export.
+- `POST /api/merchant-ops` with `append-ledger`, `rotate-key`, or `reset` actions.
+
+The current repository is an in-memory implementation. The important product-grade boundary is the repository interface: a durable Postgres, Supabase, SQLite, or Neon adapter can replace it without changing the UI flow.
 
 ## Risk Model
 
@@ -155,7 +173,7 @@ The policy layer can block before the wallet signs. This is the key product idea
 
 The project has two levels of tests.
 
-Unit tests cover payment requirement creation, authorization payloads, risk policy, signer states, ledger rows, API key rotation, reconciliation events, and CSV export.
+Unit tests cover payment requirement creation, authorization payloads, risk policy, signer states, ledger rows, merchant ops API actions, API key rotation, reconciliation events, audit events, and CSV export.
 
 Browser E2E tests cover:
 
@@ -165,9 +183,10 @@ Browser E2E tests cover:
 - Expire stops before `X-PAYMENT`.
 - API key rotation.
 - CSV export.
+- Merchant audit trail updates.
 - Mobile layout without horizontal overflow.
 
-The CI workflow runs linting, unit tests, production build, and Playwright E2E. A separate smoke script checks the deployed homepage and protected API route.
+The CI workflow runs linting, unit tests, production build, and Playwright E2E. A separate smoke script checks the deployed homepage, protected API route, merchant ops API, and ledger CSV export.
 
 ## What Is Simulated
 
@@ -175,8 +194,8 @@ The demo does not move real USDC. These pieces are simulated:
 
 - Signature creation.
 - Facilitator settlement.
-- Ledger persistence.
-- API key storage.
+- Durable ledger persistence.
+- Durable API key storage.
 - Webhook delivery.
 
 The value of the project is that each simulated piece has a clear replacement boundary. A real implementation would replace the internals without needing to redesign the product flow.
@@ -187,12 +206,13 @@ The next technical upgrades are:
 
 1. Replace `createChallenge` and `handleProtectedResource` internals with real x402 seller middleware.
 2. Replace `createAuthorization` with a real wallet signer or account-abstraction policy module.
-3. Persist ledger rows, API keys, and reconciliation events in Postgres, Supabase, or SQLite.
+3. Replace `merchantOpsStore.ts` with a durable repository backed by Postgres, Supabase, SQLite, or Neon.
 4. Add webhook verification and retry handling.
 5. Add API-key scope enforcement before the protected resource is served.
 6. Store settlement references, payload hashes, invoice ids, and policy verdicts.
 
 More detailed boundary notes are in [`real-x402-upgrade.md`](real-x402-upgrade.md).
+Product readiness notes are in [`product-grade-roadmap.md`](product-grade-roadmap.md).
 
 ## What This Demonstrates
 
@@ -202,6 +222,7 @@ AgentPay Desk is not trying to be a complete payment processor. It demonstrates 
 - Clear protocol state transitions.
 - A buyer-side policy and wallet model.
 - Merchant-facing reconciliation.
+- Server-side merchant ops boundary and audit trail.
 - Tests and production deployment.
 - A UI polished enough to explain the system quickly.
 

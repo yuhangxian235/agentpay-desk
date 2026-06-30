@@ -37,6 +37,7 @@ This version uses a local simulator instead of moving real USDC. That keeps the 
 - [90-second captioned walkthrough](docs/demo/agentpay-90s-walkthrough.mp4)
 - [Spoken script and shot list](docs/demo/90-second-walkthrough.md)
 - [Technical write-up: x402-style payments for AI agents](docs/agent-payment-technical-writeup.md)
+- [Product-grade roadmap](docs/product-grade-roadmap.md)
 
 ## Features
 
@@ -49,8 +50,9 @@ This version uses a local simulator instead of moving real USDC. That keeps the 
 - Merchant ledger CSV export for lightweight accounting and reconciliation.
 - Merchant API key registry with rotate-state simulation and per-resource scopes.
 - Webhook-style reconciliation feed for delivered settlements and held payments.
+- Server-side merchant operations API for ledger rows, API keys, reconciliation events, CSV export, and audit trail.
 - Risk controls for allowlisting, autopay, settlement network, and per-call spend caps.
-- Unit-tested payment requirement creation, authorization payloads, signer approval states, policy blocks, API key rotation, reconciliation events, and settlement records.
+- Unit-tested payment requirement creation, authorization payloads, signer approval states, policy blocks, merchant ops API, API key rotation, reconciliation events, and settlement records.
 - Liquid-glass responsive dashboard UI for desktop and mobile.
 
 ## Tech stack
@@ -114,11 +116,16 @@ tests/
                            Browser E2E coverage for payment and merchant ops flows
 api/
   protected-resource.ts    Vercel serverless API route
+  merchant-ops.ts          Vercel serverless merchant operations route
 docs/
   agent-payment-technical-writeup.md
                            Product and technical write-up for the agent payment flow
+  product-grade-roadmap.md Production-readiness boundary and next steps
   real-x402-upgrade.md     Notes for replacing the simulator with production wiring
   screenshots/             README screenshots
+src/lib/
+  merchantOpsApi.ts        Merchant ops API contract and validation
+  merchantOpsStore.ts      Replaceable merchant ops repository boundary
 ```
 
 ## Production upgrade path
@@ -163,5 +170,5 @@ vercel --prod
 
 - Built an x402-style stablecoin payment desk for AI agents buying paid API resources.
 - Implemented a real protected API route with 402 challenge handling, wallet signer approval states, signed payment retry validation, merchant ledger, API key rotation, webhook reconciliation, and risk-policy checks in React + TypeScript.
-- Added unit and Playwright E2E tests for payment requirement creation, signer decisions, authorization payloads, protected API responses, policy blocks, API key rotation, CSV export, mobile layout, reconciliation events, and settlement records.
+- Added unit and Playwright E2E tests for payment requirement creation, signer decisions, authorization payloads, protected API responses, policy blocks, merchant ops API, API key rotation, CSV export, mobile layout, reconciliation events, audit trail, and settlement records.
 - Designed a liquid-glass responsive dashboard for agent budgets, USDC-style payment authorization, failed signer approvals, paid payload delivery, merchant API keys, CSV export, and reconciliation events.

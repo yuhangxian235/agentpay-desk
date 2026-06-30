@@ -17,8 +17,9 @@ import {
   WalletCards,
   XCircle,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import "./App.css";
+import type { MerchantAuditEvent, MerchantOpsState } from "./lib/merchantOpsStore";
 import {
   type ExchangeLine,
   type LedgerEntry,
@@ -92,6 +93,8 @@ function App() {
   const [signerMode, setSignerMode] = useState<SignerMode>("auto");
   const [signerState, setSignerState] = useState<SignerState>("ready");
   const [apiKeys, setApiKeys] = useState(starterApiKeys);
+  const [auditEvents, setAuditEvents] = useState<MerchantAuditEvent[]>([]);
+  const [opsSyncedAt, setOpsSyncedAt] = useState<string | null>(null);
 
   const selectedAgent = agents.find((agent) => agent.id === selectedAgentId) ?? agents[0];
   const selectedResource =
@@ -114,6 +117,10 @@ function App() {
   const policyPreview = evaluateRisk(selectedAgent, selectedResource, ledger, riskSettings);
   const signerCopy = signerStateCopy(signerState, signerMode);
   const reconciliationEvents = useMemo(() => buildReconciliationEvents(ledger), [ledger]);
+
+  useEffect(() => {
+    void refreshMerchantState();
+  }, []);
 
   async function runPurchase() {
     if (isRunning) {
@@ -184,7 +191,7 @@ function App() {
         "blocked",
         risk.note,
       );
-      setLedger((items) => [blocked, ...items]);
+      await persistLedgerEntry(blocked);
       setPhase("blocked");
       appendExchange({
         tone: "blocked",
@@ -236,7 +243,7 @@ function App() {
         "blocked",
         signerDecision.note,
       );
-      setLedger((items) => [blocked, ...items]);
+      await persistLedgerEntry(blocked);
       setSignerState(signerDecision.status);
       setPhase("blocked");
       appendExchange({
@@ -297,7 +304,7 @@ function App() {
       settlementRef,
     };
     const nextPayload = paidBody.data ?? createPayload(selectedResource, settlementRef);
-    setLedger((items) => [entry, ...items]);
+    await persistLedgerEntry(entry);
     setPayload(nextPayload);
     setPhase("settled");
     appendExchange({
@@ -320,6 +327,65 @@ function App() {
     setIsRunning(false);
   }
 
+  async function refreshMerchantState() {
+    try {
+      const response = await fetch("/api/merchant-ops", {
+        headers: {
+          Accept: "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Merchant ops state failed to load");
+      }
+
+      hydrateMerchantState((await response.json()) as MerchantOpsState);
+    } catch {
+      setOpsSyncedAt(null);
+    }
+  }
+
+  async function postMerchantAction(body: Record<string, unknown>): Promise<MerchantOpsState> {
+    const response = await fetch("/api/merchant-ops", {
+      body: JSON.stringify(body),
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      method: "POST",
+    });
+
+    if (!response.ok) {
+      throw new Error("Merchant operation failed");
+    }
+
+    return (await response.json()) as MerchantOpsState;
+  }
+
+  async function persistLedgerEntry(entry: LedgerEntry) {
+    try {
+      hydrateMerchantState(
+        await postMerchantAction({
+          action: "append-ledger",
+          entry,
+        }),
+      );
+    } catch {
+      setLedger((items) => {
+        const next = [entry, ...items];
+        return next;
+      });
+      setOpsSyncedAt(null);
+    }
+  }
+
+  function hydrateMerchantState(state: MerchantOpsState) {
+    setLedger(state.ledger);
+    setApiKeys(state.apiKeys);
+    setAuditEvents(state.auditEvents);
+    setOpsSyncedAt(state.updatedAt);
+  }
+
   function appendExchange(line: Omit<ExchangeLine, "id">) {
     setExchange((items) => [
       ...items,
@@ -330,17 +396,43 @@ function App() {
     ]);
   }
 
-  function resetDemo() {
+  async function resetDemo() {
     setLedger(starterLedger);
     setExchange(starterExchange);
     setPayload(null);
     setPhase("idle");
     setSignerState("ready");
     setApiKeys(starterApiKeys);
+
+    try {
+      hydrateMerchantState(
+        await postMerchantAction({
+          action: "reset",
+        }),
+      );
+    } catch {
+      setAuditEvents([]);
+      setOpsSyncedAt(null);
+    }
   }
 
-  function exportLedgerCsv() {
-    const csv = ledgerToCsv(ledger);
+  async function exportLedgerCsv() {
+    let csv = ledgerToCsv(ledger);
+
+    try {
+      const response = await fetch("/api/merchant-ops?format=csv", {
+        headers: {
+          Accept: "text/csv",
+        },
+      });
+
+      if (response.ok) {
+        csv = await response.text();
+      }
+    } catch {
+      csv = ledgerToCsv(ledger);
+    }
+
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -350,6 +442,20 @@ function App() {
     link.click();
     link.remove();
     URL.revokeObjectURL(url);
+  }
+
+  async function rotateMerchantKey(keyId: string) {
+    try {
+      hydrateMerchantState(
+        await postMerchantAction({
+          action: "rotate-key",
+          keyId,
+        }),
+      );
+    } catch {
+      setApiKeys((keys) => rotateApiKey(keys, keyId));
+      setOpsSyncedAt(null);
+    }
   }
 
   return (
@@ -675,7 +781,11 @@ function App() {
             icon={<KeyRound size={19} />}
             kicker="Merchant ops"
             title="API keys & webhooks"
-            detail="Access control and settlement reconciliation"
+            detail={
+              opsSyncedAt
+                ? `Server state synced ${formatTime(opsSyncedAt)}`
+                : "Access control and settlement reconciliation"
+            }
           />
 
           <div className="ops-stack">
@@ -700,7 +810,9 @@ function App() {
                       className="mini-action"
                       data-testid={`rotate-key-${apiKey.id}`}
                       type="button"
-                      onClick={() => setApiKeys((keys) => rotateApiKey(keys, apiKey.id))}
+                      onClick={() => {
+                        void rotateMerchantKey(apiKey.id);
+                      }}
                     >
                       Rotate
                     </button>
@@ -723,6 +835,25 @@ function App() {
                       <small>{event.detail}</small>
                     </div>
                     <b>{event.status}</b>
+                  </article>
+                ))}
+              </div>
+            </div>
+
+            <div className="ops-block">
+              <div className="ops-heading">
+                <span>Audit trail</span>
+                <b>{auditEvents.length} events</b>
+              </div>
+              <div className="event-list" data-testid="audit-list">
+                {auditEvents.slice(0, 4).map((event) => (
+                  <article className="event-row delivered" key={event.id}>
+                    <div>
+                      <strong>{event.action}</strong>
+                      <span>{event.actor}</span>
+                      <small>{event.detail}</small>
+                    </div>
+                    <b>{formatTime(event.createdAt)}</b>
                   </article>
                 ))}
               </div>

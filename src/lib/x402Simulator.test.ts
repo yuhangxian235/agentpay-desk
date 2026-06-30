@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { handleMerchantOps } from "./merchantOpsApi";
 import { handleProtectedResource } from "./protectedResourceApi";
 import {
+  type LedgerEntry,
   agents,
   buildReconciliationEvents,
   createAuthorization,
@@ -167,5 +169,90 @@ describe("x402 simulator", () => {
     expect(rotated[0].prefix).toMatch(/^ak_live_[0-9a-f]+$/);
     expect(rotated[0].prefix).not.toBe(starterApiKeys[0].prefix);
     expect(rotated[1]).toEqual(starterApiKeys[1]);
+  });
+
+  it("serves merchant ops state through a backend resource", () => {
+    handleMerchantOps({
+      body: { action: "reset" },
+      method: "POST",
+      searchParams: new URLSearchParams(),
+    });
+
+    const result = handleMerchantOps({
+      method: "GET",
+      searchParams: new URLSearchParams(),
+    });
+    const state = result.body as {
+      auditEvents: Array<{ action: string }>;
+      ledger: LedgerEntry[];
+      version: number;
+    };
+
+    expect(result.status).toBe(200);
+    expect(state.ledger).toHaveLength(starterLedger.length);
+    expect(state.auditEvents[0].action).toBe("state.reset");
+    expect(state.version).toBe(1);
+  });
+
+  it("persists merchant ledger entries and exposes server-side CSV export", () => {
+    handleMerchantOps({
+      body: { action: "reset" },
+      method: "POST",
+      searchParams: new URLSearchParams(),
+    });
+
+    const entry = createLedgerEntry(
+      agents[0],
+      resources[3],
+      "base",
+      "settled",
+      "Allowlisted agent",
+    );
+    const append = handleMerchantOps({
+      body: { action: "append-ledger", entry },
+      method: "POST",
+      searchParams: new URLSearchParams(),
+    });
+    const state = append.body as {
+      auditEvents: Array<{ action: string; targetId: string }>;
+      ledger: LedgerEntry[];
+    };
+    const csv = handleMerchantOps({
+      method: "GET",
+      searchParams: new URLSearchParams("format=csv"),
+    });
+
+    expect(append.status).toBe(200);
+    expect(state.ledger[0]).toMatchObject({ id: entry.id, resourceId: "fx-route" });
+    expect(state.auditEvents[0]).toMatchObject({ action: "ledger.appended", targetId: entry.id });
+    expect(csv.status).toBe(200);
+    expect(csv.headers["Content-Type"]).toContain("text/csv");
+    expect(csv.body).toContain(entry.id);
+  });
+
+  it("rotates merchant API keys through the merchant ops API", () => {
+    handleMerchantOps({
+      body: { action: "reset" },
+      method: "POST",
+      searchParams: new URLSearchParams(),
+    });
+
+    const result = handleMerchantOps({
+      body: { action: "rotate-key", keyId: starterApiKeys[0].id },
+      method: "POST",
+      searchParams: new URLSearchParams(),
+    });
+    const state = result.body as {
+      apiKeys: typeof starterApiKeys;
+      auditEvents: Array<{ action: string; targetId: string }>;
+    };
+
+    expect(result.status).toBe(200);
+    expect(state.apiKeys[0].status).toBe("rotating");
+    expect(state.apiKeys[0].prefix).toMatch(/^ak_live_[0-9a-f]+$/);
+    expect(state.auditEvents[0]).toMatchObject({
+      action: "api_key.rotated",
+      targetId: starterApiKeys[0].id,
+    });
   });
 });

@@ -15,7 +15,28 @@ async function main() {
   const script = await fetchText(new URL(scriptPath, root));
   assert(script.includes("AgentPay Desk"), "Bundle missing AgentPay Desk copy");
   assert(script.includes("API keys & webhooks"), "Bundle missing Merchant ops copy");
+  assert(script.includes("audit-list"), "Bundle missing merchant audit trail");
   assert(script.includes("export-ledger"), "Bundle missing CSV export test id");
+
+  const merchantOps = await fetchWithRetry(new URL("/api/merchant-ops", root), {
+    headers: { Accept: "application/json" },
+  });
+  assert(merchantOps.status === 200, `Expected merchant ops 200, received ${merchantOps.status}`);
+
+  const merchantOpsBody = await merchantOps.json();
+  assert(Array.isArray(merchantOpsBody.ledger), "Merchant ops state missing ledger");
+  assert(Array.isArray(merchantOpsBody.apiKeys), "Merchant ops state missing API keys");
+  assert(Array.isArray(merchantOpsBody.auditEvents), "Merchant ops state missing audit events");
+
+  const ledgerCsv = await fetchWithRetry(new URL("/api/merchant-ops?format=csv", root), {
+    headers: { Accept: "text/csv" },
+  });
+  assert(ledgerCsv.status === 200, `Expected ledger CSV 200, received ${ledgerCsv.status}`);
+  assert(
+    ledgerCsv.headers.get("content-type")?.includes("text/csv"),
+    "Ledger CSV missing text/csv content type",
+  );
+  assert((await ledgerCsv.text()).includes("payment_id,created_at,status"), "Ledger CSV missing headers");
 
   const challenge = await fetchWithRetry(new URL(apiPath, root), {
     headers: { Accept: "application/json" },
@@ -60,6 +81,7 @@ async function main() {
       {
         api: "ok",
         homepage: "ok",
+        merchantOps: "ok",
         settlementRef,
         url: root,
       },
