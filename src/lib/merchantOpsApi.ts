@@ -1,5 +1,5 @@
-import type { LedgerEntry, Network } from "./x402Simulator";
-import { merchantOpsRepository } from "./merchantOpsStore";
+import { merchantOpsRepository } from "./merchantOpsStore.js";
+import type { LedgerEntry, Network } from "./x402Simulator.js";
 
 export type MerchantOpsResult = {
   body: Record<string, unknown> | string;

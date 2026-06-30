@@ -7,7 +7,7 @@ import {
   rotateApiKey,
   starterApiKeys,
   starterLedger,
-} from "./x402Simulator";
+} from "./x402Simulator.js";
 
 export type MerchantAuditEvent = {
   id: string;
