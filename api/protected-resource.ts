@@ -12,6 +12,7 @@ export default function handler(request: IncomingMessage, response: ServerRespon
   const url = new URL(request.url ?? "", `https://${request.headers.host ?? "localhost"}`);
   const result = handleProtectedResource({
     agentId: url.searchParams.get("agentId"),
+    apiKeyHeader: readHeader(request.headers["x-api-key"]),
     resourceId: url.searchParams.get("resourceId"),
     network: url.searchParams.get("network"),
     paymentHeader: readHeader(request.headers["x-payment"]),

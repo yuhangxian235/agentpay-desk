@@ -35,6 +35,7 @@ import {
   createPayload,
   evaluateSigner,
   evaluateRisk,
+  findDemoApiCredential,
   formatTime,
   ledgerToCsv,
   merchant,
@@ -134,6 +135,8 @@ function App() {
     setSignerState("ready");
 
     const apiUrl = protectedResourceUrl(selectedAgent.id, selectedResource.id, network);
+    const apiCredential = findDemoApiCredential(selectedResource.id);
+    const apiKey = apiCredential?.secret ?? "";
 
     appendExchange({
       tone: "request",
@@ -145,6 +148,7 @@ function App() {
           agent: selectedAgent.name,
           route: selectedResource.path,
           wallet: selectedAgent.wallet,
+          "X-API-Key": maskApiKey(apiKey),
           accept: "application/json",
           payment: null,
         },
@@ -157,6 +161,7 @@ function App() {
     const challengeResponse = await fetch(apiUrl, {
       headers: {
         Accept: "application/json",
+        "X-API-Key": apiKey,
       },
     });
     const challenge =
@@ -291,6 +296,7 @@ function App() {
     const paidResponse = await fetch(apiUrl, {
       headers: {
         Accept: "application/json",
+        "X-API-Key": apiKey,
         "X-PAYMENT": authorization.header,
       },
     });
@@ -1025,6 +1031,14 @@ function protectedResourceUrl(agentId: string, resourceId: string, network: Netw
   });
 
   return `/api/protected-resource?${params.toString()}`;
+}
+
+function maskApiKey(value: string): string {
+  if (!value) {
+    return "missing";
+  }
+
+  return `${value.slice(0, 10)}...${value.slice(-4)}`;
 }
 
 export default App;

@@ -68,11 +68,12 @@ src/lib/protectedResourceApi.ts
 
 `api/protected-resource.ts` is the Vercel serverless entrypoint. It reads query params and the `x-payment` header, then calls `handleProtectedResource`.
 
-`handleProtectedResource` does three things:
+`handleProtectedResource` does four things:
 
 1. Validates the selected agent, resource, and network.
-2. Returns `402` and `X-402-Version` when no payment header is present.
-3. Decodes and checks `X-PAYMENT`, then returns paid data and `X-PAYMENT-RESPONSE`.
+2. Verifies `X-API-Key` and endpoint scope before a payment challenge can be issued.
+3. Returns `402` and `X-402-Version` when no payment header is present.
+4. Decodes and checks `X-PAYMENT`, then returns paid data and `X-PAYMENT-RESPONSE`.
 
 This keeps the API route real while still avoiding real funds in the demo.
 
@@ -98,6 +99,7 @@ The key functions are:
 
 - `createChallenge`: builds an x402-style payment requirement.
 - `createAuthorization`: creates a signed-looking `X-PAYMENT` payload.
+- `verifyApiKey`: checks a demo API key and resource scope before payment.
 - `evaluateRisk`: enforces allowlist, autopay, spend cap, daily budget, and wallet balance.
 - `evaluateSigner`: models Auto, Review, Reject, and Expire wallet states.
 - `createLedgerEntry`: records settled or blocked payments.
@@ -155,6 +157,25 @@ src/lib/merchantOpsStore.ts
 
 The current repository is an in-memory implementation. The important product-grade boundary is the repository interface: a durable Postgres, Supabase, SQLite, or Neon adapter can replace it without changing the UI flow.
 
+## API Key Enforcement
+
+Paid API access now has two gates:
+
+1. `X-API-Key` verifies that the client is allowed to reach a seller endpoint.
+2. `X-PAYMENT` verifies that the client has paid for the specific response.
+
+That means a missing or wrong API key returns `401` or `403` before the server even returns an x402 challenge. Only a scoped key can receive `402 Payment Required`.
+
+The demo credentials are intentionally public and non-production:
+
+```text
+ak_live_7Qm9_demo -> rwa-yield, wallet-risk
+ak_live_D4p2_demo -> invoice-scan
+ak_test_5Vx1_demo -> fx-route
+```
+
+A production version should store hashed API key secrets, enforce merchant tenancy, rotate keys with grace periods, and audit denied calls.
+
 ## Risk Model
 
 The demo risk policy is deliberately simple:
@@ -173,7 +194,7 @@ The policy layer can block before the wallet signs. This is the key product idea
 
 The project has two levels of tests.
 
-Unit tests cover payment requirement creation, authorization payloads, risk policy, signer states, ledger rows, merchant ops API actions, API key rotation, reconciliation events, audit events, and CSV export.
+Unit tests cover payment requirement creation, authorization payloads, API key scope enforcement, risk policy, signer states, ledger rows, merchant ops API actions, API key rotation, reconciliation events, audit events, and CSV export.
 
 Browser E2E tests cover:
 

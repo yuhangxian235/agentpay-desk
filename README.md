@@ -49,10 +49,11 @@ This version uses a local simulator instead of moving real USDC. That keeps the 
 - Merchant ledger for settled and blocked API calls.
 - Merchant ledger CSV export for lightweight accounting and reconciliation.
 - Merchant API key registry with rotate-state simulation and per-resource scopes.
+- Protected API route enforces `X-API-Key` before returning a payment challenge.
 - Webhook-style reconciliation feed for delivered settlements and held payments.
 - Server-side merchant operations API for ledger rows, API keys, reconciliation events, CSV export, and audit trail.
 - Risk controls for allowlisting, autopay, settlement network, and per-call spend caps.
-- Unit-tested payment requirement creation, authorization payloads, signer approval states, policy blocks, merchant ops API, API key rotation, reconciliation events, and settlement records.
+- Unit-tested payment requirement creation, authorization payloads, signer approval states, policy blocks, merchant ops API, API key scope enforcement, reconciliation events, and settlement records.
 - Liquid-glass responsive dashboard UI for desktop and mobile.
 
 ## Tech stack
@@ -170,5 +171,5 @@ vercel --prod
 
 - Built an x402-style stablecoin payment desk for AI agents buying paid API resources.
 - Implemented a real protected API route with 402 challenge handling, wallet signer approval states, signed payment retry validation, merchant ledger, API key rotation, webhook reconciliation, and risk-policy checks in React + TypeScript.
-- Added unit and Playwright E2E tests for payment requirement creation, signer decisions, authorization payloads, protected API responses, policy blocks, merchant ops API, API key rotation, CSV export, mobile layout, reconciliation events, audit trail, and settlement records.
+- Added unit and Playwright E2E tests for payment requirement creation, signer decisions, authorization payloads, protected API responses, API key scope enforcement, policy blocks, merchant ops API, API key rotation, CSV export, mobile layout, reconciliation events, audit trail, and settlement records.
 - Designed a liquid-glass responsive dashboard for agent budgets, USDC-style payment authorization, failed signer approvals, paid payload delivery, merchant API keys, CSV export, and reconciliation events.

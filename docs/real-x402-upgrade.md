@@ -14,7 +14,7 @@ handleProtectedResource({ agentId, resourceId, network, paymentHeader })
 Production replacement:
 
 - Protect each paid API route with x402 seller middleware.
-- Authenticate merchant-owned endpoints with scoped API keys before returning paid data.
+- Authenticate merchant-owned endpoints with scoped API keys before returning a 402 challenge or paid data.
 - Set the accepted network, USDC asset, pay-to account, and exact amount per resource.
 - Return `402 Payment Required` when the request does not include a valid payment.
 - Return `X-PAYMENT-RESPONSE` after settlement verification.
@@ -61,6 +61,7 @@ Current boundary:
 starterApiKeys
 rotateApiKey(keys, keyId)
 POST /api/merchant-ops { action: "rotate-key", keyId }
+verifyApiKey(apiKey, resourceId)
 ```
 
 Production replacement:

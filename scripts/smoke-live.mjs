@@ -3,6 +3,7 @@ import { execFileSync } from "node:child_process";
 const root = process.env.AGENTPAY_SMOKE_URL ?? "https://agentpay-desk.vercel.app";
 
 const apiPath = "/api/protected-resource?agentId=quanta-scout&resourceId=rwa-yield&network=base-sepolia";
+const apiKey = "ak_live_7Qm9_demo";
 
 async function main() {
   const home = await fetchWithRetry(root);
@@ -38,8 +39,16 @@ async function main() {
   );
   assert((await ledgerCsv.text()).includes("payment_id,created_at,status"), "Ledger CSV missing headers");
 
-  const challenge = await fetchWithRetry(new URL(apiPath, root), {
+  const unauthenticated = await fetchWithRetry(new URL(apiPath, root), {
     headers: { Accept: "application/json" },
+  });
+  assert(
+    unauthenticated.status === 401,
+    `Expected missing API key 401, received ${unauthenticated.status}`,
+  );
+
+  const challenge = await fetchWithRetry(new URL(apiPath, root), {
+    headers: { Accept: "application/json", "X-API-Key": apiKey },
   });
   assert(challenge.status === 402, `Expected API challenge 402, received ${challenge.status}`);
   assert(challenge.headers.get("x-402-version") === "1", "Missing X-402-Version header");
@@ -64,6 +73,7 @@ async function main() {
   const paid = await fetchWithRetry(new URL(apiPath, root), {
     headers: {
       Accept: "application/json",
+      "X-API-Key": apiKey,
       "X-PAYMENT": paymentHeader,
     },
   });

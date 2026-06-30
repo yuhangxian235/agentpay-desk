@@ -8,8 +8,10 @@ import {
   createAuthorization,
   createChallenge,
   createLedgerEntry,
+  demoApiCredentials,
   evaluateSigner,
   evaluateRisk,
+  findDemoApiCredential,
   ledgerToCsv,
   rotateApiKey,
   resources,
@@ -100,6 +102,7 @@ describe("x402 simulator", () => {
   it("returns a 402 response when the protected API is called without payment", () => {
     const response = handleProtectedResource({
       agentId: agents[0].id,
+      apiKeyHeader: findDemoApiCredential(resources[0].id)?.secret,
       resourceId: resources[0].id,
       network: "base-sepolia",
     });
@@ -109,9 +112,34 @@ describe("x402 simulator", () => {
     expect(response.body.error).toBe("X-PAYMENT header is required");
   });
 
+  it("requires an API key before returning a payment challenge", () => {
+    const response = handleProtectedResource({
+      agentId: agents[0].id,
+      resourceId: resources[0].id,
+      network: "base-sepolia",
+    });
+
+    expect(response.status).toBe(401);
+    expect(response.headers["WWW-Authenticate"]).toContain("ApiKey");
+    expect(response.body.error).toBe("X-API-Key header is required");
+  });
+
+  it("rejects API keys that are not scoped for the requested resource", () => {
+    const response = handleProtectedResource({
+      agentId: agents[0].id,
+      apiKeyHeader: demoApiCredentials[1].secret,
+      resourceId: resources[0].id,
+      network: "base-sepolia",
+    });
+
+    expect(response.status).toBe(403);
+    expect(response.body.error).toBe("API key is not scoped for this resource");
+  });
+
   it("returns paid data when the protected API receives a valid X-PAYMENT header", () => {
     const challenge = handleProtectedResource({
       agentId: agents[0].id,
+      apiKeyHeader: findDemoApiCredential(resources[0].id)?.secret,
       resourceId: resources[0].id,
       network: "base-sepolia",
     });
@@ -119,12 +147,14 @@ describe("x402 simulator", () => {
     const authorization = createAuthorization(agents[0], paymentChallenge.accepts[0]);
     const paid = handleProtectedResource({
       agentId: agents[0].id,
+      apiKeyHeader: findDemoApiCredential(resources[0].id)?.secret,
       resourceId: resources[0].id,
       network: "base-sepolia",
       paymentHeader: authorization.header,
     });
 
     expect(paid.status).toBe(200);
+    expect(paid.body.apiKey).toMatchObject({ validated: true });
     expect(paid.headers["X-PAYMENT-RESPONSE"]).toMatch(/^api_[0-9a-f]+$/);
     expect(paid.body.payment).toMatchObject({ validated: true, asset: "USDC" });
     expect(paid.body.data).toMatchObject({ market: "tokenized_treasuries" });

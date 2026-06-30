@@ -47,6 +47,7 @@ function protectedResourceApi(): Plugin {
         const url = new URL(request.url ?? "", "http://localhost/api/protected-resource");
         const result = handleProtectedResource({
           agentId: url.searchParams.get("agentId"),
+          apiKeyHeader: readHeader(request.headers["x-api-key"]),
           resourceId: url.searchParams.get("resourceId"),
           network: url.searchParams.get("network"),
           paymentHeader: readHeader(request.headers["x-payment"]),

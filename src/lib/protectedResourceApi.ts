@@ -5,10 +5,12 @@ import {
   merchant,
   resources,
   agents,
+  verifyApiKey,
 } from "./x402Simulator.js";
 
 type ProtectedResourceInput = {
   agentId: string | null;
+  apiKeyHeader?: string | null;
   resourceId: string | null;
   network: string | null;
   paymentHeader?: string | null;
@@ -17,7 +19,7 @@ type ProtectedResourceInput = {
 type ProtectedResourceResult = {
   body: Record<string, unknown>;
   headers: Record<string, string>;
-  status: 200 | 400 | 402;
+  status: 200 | 400 | 401 | 402 | 403;
 };
 
 const networks: Network[] = ["base", "base-sepolia", "polygon"];
@@ -36,6 +38,27 @@ export function handleProtectedResource(input: ProtectedResourceInput): Protecte
         acceptedAgentIds: agents.map((item) => item.id),
         acceptedResourceIds: resources.map((item) => item.id),
         acceptedNetworks: networks,
+      },
+    };
+  }
+
+  const apiKeyVerdict = verifyApiKey(input.apiKeyHeader, resource.id);
+
+  if (apiKeyVerdict.allowed === false) {
+    const status = apiKeyVerdict.status;
+
+    return {
+      status,
+      headers:
+        status === 401
+          ? {
+              "WWW-Authenticate": 'ApiKey realm="Northstar Data Market"',
+            }
+          : {},
+      body: {
+        error: apiKeyVerdict.note,
+        resourceId: resource.id,
+        requiredHeader: "X-API-Key",
       },
     };
   }
@@ -89,6 +112,10 @@ export function handleProtectedResource(input: ProtectedResourceInput): Protecte
       settlementRef,
       paid: resource.priceUsd,
       data: payload,
+      apiKey: {
+        keyId: apiKeyVerdict.keyId,
+        validated: true,
+      },
       payment: {
         validated: true,
         from: decoded.payload.from,

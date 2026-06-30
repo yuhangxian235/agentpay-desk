@@ -102,6 +102,13 @@ export type MerchantApiKey = {
   requests30d: number;
 };
 
+export type MerchantApiCredential = {
+  keyId: string;
+  resourceIds: string[];
+  secret: string;
+  status: MerchantApiKey["status"];
+};
+
 export type ReconciliationEvent = {
   id: string;
   createdAt: string;
@@ -274,6 +281,89 @@ export const starterApiKeys: MerchantApiKey[] = [
     requests30d: 78,
   },
 ];
+
+export const demoApiCredentials: MerchantApiCredential[] = [
+  {
+    keyId: "key_prod_data",
+    resourceIds: ["rwa-yield", "wallet-risk"],
+    secret: "ak_live_7Qm9_demo",
+    status: "active",
+  },
+  {
+    keyId: "key_ops_payables",
+    resourceIds: ["invoice-scan"],
+    secret: "ak_live_D4p2_demo",
+    status: "active",
+  },
+  {
+    keyId: "key_routes_beta",
+    resourceIds: ["fx-route"],
+    secret: "ak_test_5Vx1_demo",
+    status: "rotating",
+  },
+];
+
+export type ApiKeyVerdict =
+  | {
+      allowed: true;
+      keyId: string;
+      note: string;
+    }
+  | {
+      allowed: false;
+      note: string;
+      status: 401 | 403;
+    };
+
+export function findDemoApiCredential(resourceId: string): MerchantApiCredential | undefined {
+  return demoApiCredentials.find(
+    (credential) =>
+      credential.resourceIds.includes(resourceId) &&
+      (credential.status === "active" || credential.status === "rotating"),
+  );
+}
+
+export function verifyApiKey(apiKey: string | null | undefined, resourceId: string): ApiKeyVerdict {
+  if (!apiKey) {
+    return {
+      allowed: false,
+      note: "X-API-Key header is required",
+      status: 401,
+    };
+  }
+
+  const credential = demoApiCredentials.find((item) => item.secret === apiKey);
+
+  if (!credential) {
+    return {
+      allowed: false,
+      note: "Unknown API key",
+      status: 401,
+    };
+  }
+
+  if (credential.status === "revoked") {
+    return {
+      allowed: false,
+      note: "API key is revoked",
+      status: 403,
+    };
+  }
+
+  if (!credential.resourceIds.includes(resourceId)) {
+    return {
+      allowed: false,
+      note: "API key is not scoped for this resource",
+      status: 403,
+    };
+  }
+
+  return {
+    allowed: true,
+    keyId: credential.keyId,
+    note: credential.status === "rotating" ? "API key accepted during rotation" : "API key scope verified",
+  };
+}
 
 export function createChallenge(
   agent: Agent,
