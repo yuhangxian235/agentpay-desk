@@ -5,6 +5,7 @@ AgentPay Desk is now more than a front-end demo: merchant ledger, API keys, reco
 ## Current Productized Surface
 
 - Real protected API route: `/api/protected-resource`.
+- x402 facilitator adapter boundary with settlement receipt metadata.
 - Merchant operations API route: `/api/merchant-ops`.
 - Server-side merchant state contract for ledger rows, API keys, reconciliation events, CSV export, and audit events.
 - Protected resource API key enforcement with scoped demo credentials.
@@ -19,7 +20,7 @@ AgentPay Desk is now more than a front-end demo: merchant ledger, API keys, reco
 - The Vercel demo still defaults to in-memory state and is not durable across serverless cold starts.
 - The file-backed adapter is local/Node persistence, not a production multi-tenant database.
 - Wallet signatures are simulated.
-- x402 facilitator settlement is simulated.
+- x402 facilitator settlement uses a local adapter, not a live facilitator network call.
 - API key secrets are public demo credentials, not hashed production credentials.
 - Webhook delivery is displayed as reconciliation events, not sent to real merchant endpoints.
 - There is no auth, user account model, RBAC, rate limit, or billing tenant model yet.
@@ -40,7 +41,7 @@ AgentPay Desk is now more than a front-end demo: merchant ledger, API keys, reco
 3. Real x402 integration
    - Replace simulated challenge creation with x402 seller middleware.
    - Replace simulated authorization with wallet signing.
-   - Store real settlement references and facilitator responses.
+   - Replace `x402Facilitator.ts` with a real facilitator client and store facilitator responses.
 
 4. Reconciliation workers
    - Add webhook delivery attempts, retries, signatures, and dead-letter handling.
@@ -56,5 +57,5 @@ AgentPay Desk is now more than a front-end demo: merchant ledger, API keys, reco
 Call the current version a production-shaped prototype:
 
 ```text
-The demo now has real HTTP API boundaries, server-side merchant ops state, a replaceable storage adapter, audit trail, browser E2E, CI, and live smoke checks. The remaining work to make it a real payment product is replacing the demo repository and simulated signer/facilitator with production database storage and real x402 settlement.
+The demo now has real HTTP API boundaries, a facilitator adapter, server-side merchant ops state, a replaceable storage adapter, audit trail, browser E2E, CI, and live smoke checks. The remaining work to make it a real payment product is replacing the demo repository and simulated signer/facilitator with production database storage and real x402 settlement.
 ```

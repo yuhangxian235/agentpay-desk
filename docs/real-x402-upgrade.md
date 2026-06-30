@@ -9,6 +9,7 @@ Current boundary:
 ```text
 api/protected-resource.ts
 handleProtectedResource({ agentId, resourceId, network, paymentHeader })
+src/lib/x402Facilitator.ts
 ```
 
 Production replacement:
@@ -17,7 +18,23 @@ Production replacement:
 - Authenticate merchant-owned endpoints with scoped API keys before returning a 402 challenge or paid data.
 - Set the accepted network, USDC asset, pay-to account, and exact amount per resource.
 - Return `402 Payment Required` when the request does not include a valid payment.
-- Return `X-PAYMENT-RESPONSE` after settlement verification.
+- Return `X-FACILITATOR-RECEIPT` and `X-PAYMENT-RESPONSE` after settlement verification.
+
+## Facilitator
+
+Current boundary:
+
+```text
+createSimulatedFacilitator(endpoint)
+x402Facilitator.settle({ agent, authorization, paymentHeader, requirement, resource })
+```
+
+Production replacement:
+
+- Replace the local adapter with a real facilitator client.
+- Send the signed `X-PAYMENT` envelope for verification and settlement.
+- Persist the facilitator receipt id, transaction hash, raw response hash, verification status, and settlement reference.
+- Keep the rest of `handleProtectedResource` stable so the seller route does not need a rewrite.
 
 ## Agent client
 
@@ -48,7 +65,7 @@ POST /api/merchant-ops { action: "append-ledger", entry }
 
 Production replacement:
 
-- Persist invoice id, agent wallet, endpoint id, amount, network, settlement response, payload hash, and policy verdict.
+- Persist invoice id, agent wallet, endpoint id, amount, network, settlement response, facilitator receipt id, transaction hash, raw response hash, payload hash, and policy verdict.
 - Add reconciliation jobs and webhook events for pending settlement, refunds, duplicate payments, held payments, and failed facilitator responses.
 - Export CSV or accounting events for merchant operations.
 - Replace the demo merchant repository adapters in `src/lib/merchantOpsStore.ts` with a durable database adapter.
@@ -87,6 +104,7 @@ Production replacement:
 ## Product next steps
 
 - Connect a real wallet/signature provider for a demo buyer.
+- Replace the local facilitator adapter with a live x402 facilitator client.
 - Store ledger data in SQLite, Supabase, Neon, or Postgres.
 - Replace the simulated merchant API key registry with persisted keys and real auth middleware.
 - Add webhook verification for settlement events.

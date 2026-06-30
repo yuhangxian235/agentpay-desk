@@ -86,15 +86,22 @@ async function main() {
 
   const settlementRef = paid.headers.get("x-payment-response");
   assert(/^api_[0-9a-f]+$/.test(settlementRef ?? ""), "Missing X-PAYMENT-RESPONSE settlement ref");
+  const facilitatorReceipt = paid.headers.get("x-facilitator-receipt");
+  assert(
+    /^fac_[0-9a-f]+$/.test(facilitatorReceipt ?? ""),
+    "Missing X-FACILITATOR-RECEIPT receipt",
+  );
 
   const paidBody = await paid.json();
   assert(paidBody.data?.market === "tokenized_treasuries", "Unexpected paid payload market");
   assert(paidBody.payment?.validated === true, "Paid response missing validated payment");
+  assert(paidBody.facilitator?.status === "settled", "Paid response missing facilitator settlement");
 
   console.log(
     JSON.stringify(
       {
         api: "ok",
+        facilitatorReceipt,
         homepage: "ok",
         merchantOps: "ok",
         settlementRef,

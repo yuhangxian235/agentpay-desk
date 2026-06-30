@@ -7,6 +7,10 @@ import {
   agents,
   verifyApiKey,
 } from "./x402Simulator.js";
+import {
+  type PaymentAuthorizationEnvelope,
+  x402Facilitator,
+} from "./x402Facilitator.js";
 
 type ProtectedResourceInput = {
   agentId: string | null;
@@ -100,18 +104,35 @@ export function handleProtectedResource(input: ProtectedResourceInput): Protecte
     };
   }
 
-  const settlementRef = `api_${Date.now().toString(16).slice(-8)}`;
+  const settlement = x402Facilitator.settle({
+    agent,
+    authorization: decoded,
+    paymentHeader: input.paymentHeader,
+    requirement,
+    resource,
+  });
+  const settlementRef = settlement.settlementRef;
   const payload = createPayload(resource, settlementRef);
 
   return {
     status: 200,
     headers: {
+      "X-FACILITATOR-RECEIPT": settlement.receiptId,
       "X-PAYMENT-RESPONSE": settlementRef,
     },
     body: {
       settlementRef,
       paid: resource.priceUsd,
       data: payload,
+      facilitator: {
+        mode: settlement.mode,
+        note: settlement.note,
+        provider: settlement.provider,
+        receiptId: settlement.receiptId,
+        status: settlement.status,
+        transactionHash: settlement.transactionHash,
+        verifiedAt: settlement.verifiedAt,
+      },
       apiKey: {
         keyId: apiKeyVerdict.keyId,
         validated: true,
@@ -122,22 +143,13 @@ export function handleProtectedResource(input: ProtectedResourceInput): Protecte
         network: decoded.payload.network,
         value: decoded.payload.value,
         asset: decoded.payload.asset,
+        facilitatorReceipt: settlement.receiptId,
       },
     },
   };
 }
 
-function decodePaymentHeader(header: string):
-  | {
-      payload: {
-        asset?: string;
-        from?: string;
-        network?: string;
-        to?: string;
-        value?: string;
-      };
-    }
-  | null {
+function decodePaymentHeader(header: string): PaymentAuthorizationEnvelope | null {
   try {
     const decoded = JSON.parse(atob(header)) as {
       payload?: {
@@ -147,13 +159,14 @@ function decodePaymentHeader(header: string):
         to?: string;
         value?: string;
       };
+      signature?: string;
     };
 
     if (!decoded.payload) {
       return null;
     }
 
-    return { payload: decoded.payload };
+    return { payload: decoded.payload, signature: decoded.signature };
   } catch {
     return null;
   }

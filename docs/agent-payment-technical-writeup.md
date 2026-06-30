@@ -6,7 +6,7 @@ AgentPay Desk is a product prototype for a near-future workflow: autonomous agen
 - A seller API that can require payment over HTTP.
 - A wallet and policy layer that decides whether the agent is allowed to pay.
 
-The project is intentionally small enough to review quickly, but it preserves production-shaped boundaries: a protected API route, a merchant operations API route, a 402 challenge, signer approval states, signed retry, merchant ledger, API key rotation, webhook-style reconciliation, CSV export, audit trail, and browser E2E coverage.
+The project is intentionally small enough to review quickly, but it preserves production-shaped boundaries: a protected API route, a merchant operations API route, a facilitator adapter, a 402 challenge, signer approval states, signed retry, merchant ledger, API key rotation, webhook-style reconciliation, CSV export, audit trail, and browser E2E coverage.
 
 Live demo: https://agentpay-desk.vercel.app
 
@@ -31,6 +31,7 @@ sequenceDiagram
     participant Agent as Buyer agent
     participant Policy as Wallet policy
     participant API as Protected API
+    participant Facilitator as Facilitator adapter
     participant Ledger as Merchant ledger
 
     Agent->>API: GET /api/protected-resource
@@ -39,7 +40,9 @@ sequenceDiagram
     alt Approved
         Policy-->>Agent: Signed payment authorization
         Agent->>API: Retry with X-PAYMENT
-        API-->>Agent: 200 + X-PAYMENT-RESPONSE + paid data
+        API->>Facilitator: Verify payment envelope
+        Facilitator-->>API: Receipt + settlement reference
+        API-->>Agent: 200 + X-FACILITATOR-RECEIPT + X-PAYMENT-RESPONSE + paid data
         API->>Ledger: Record settled payment
     else Rejected, expired, or blocked
         Policy-->>Agent: No signature
@@ -73,7 +76,7 @@ src/lib/protectedResourceApi.ts
 1. Validates the selected agent, resource, and network.
 2. Verifies `X-API-Key` and endpoint scope before a payment challenge can be issued.
 3. Returns `402` and `X-402-Version` when no payment header is present.
-4. Decodes and checks `X-PAYMENT`, then returns paid data and `X-PAYMENT-RESPONSE`.
+4. Decodes and checks `X-PAYMENT`, settles through the facilitator adapter, then returns paid data and `X-PAYMENT-RESPONSE`.
 
 This keeps the API route real while still avoiding real funds in the demo.
 
@@ -102,6 +105,7 @@ The key functions are:
 - `verifyApiKey`: checks a demo API key and resource scope before payment.
 - `evaluateRisk`: enforces allowlist, autopay, spend cap, daily budget, and wallet balance.
 - `evaluateSigner`: models Auto, Review, Reject, and Expire wallet states.
+- `x402Facilitator.settle`: verifies the exact payment envelope and returns receipt metadata.
 - `createLedgerEntry`: records settled or blocked payments.
 - `buildReconciliationEvents`: turns ledger rows into merchant-facing webhook events.
 - `rotateApiKey`: simulates merchant key rotation.
@@ -123,8 +127,9 @@ The `runPurchase` function coordinates the payment flow:
 4. Runs the wallet signer state.
 5. Creates `X-PAYMENT` only after approval.
 6. Retries the protected API route with the signed authorization.
-7. Posts the settlement or held-payment result to `/api/merchant-ops`.
-8. Updates the paid payload, merchant ledger, reconciliation feed, and audit trail.
+7. Displays the facilitator receipt and settlement response.
+8. Posts the settlement or held-payment result to `/api/merchant-ops`.
+9. Updates the paid payload, merchant ledger, reconciliation feed, and audit trail.
 
 This makes the UI useful for demoing both success and failure paths.
 
@@ -178,6 +183,16 @@ ak_test_5Vx1_demo -> fx-route
 
 A production version should store hashed API key secrets, enforce merchant tenancy, rotate keys with grace periods, and audit denied calls.
 
+## Facilitator Boundary
+
+Paid responses now pass through `src/lib/x402Facilitator.ts`. The default adapter is local and safe for a public demo, but it models the production handshake shape:
+
+```text
+X-PAYMENT -> facilitator adapter -> receipt id -> X-FACILITATOR-RECEIPT -> X-PAYMENT-RESPONSE
+```
+
+If `X402_FACILITATOR_URL` is configured, the adapter marks itself as `http-ready` in the response metadata. It still settles locally today; the next production step is replacing that adapter internals with a real facilitator request and persisting the response body.
+
 ## Risk Model
 
 The demo risk policy is deliberately simple:
@@ -196,7 +211,7 @@ The policy layer can block before the wallet signs. This is the key product idea
 
 The project has two levels of tests.
 
-Unit tests cover payment requirement creation, authorization payloads, API key scope enforcement, risk policy, signer states, ledger rows, merchant ops API actions, API key rotation, file-backed repository persistence, reconciliation events, audit events, and CSV export.
+Unit tests cover payment requirement creation, authorization payloads, API key scope enforcement, facilitator settlement receipts, risk policy, signer states, ledger rows, merchant ops API actions, API key rotation, file-backed repository persistence, reconciliation events, audit events, and CSV export.
 
 Browser E2E tests cover:
 
@@ -209,14 +224,14 @@ Browser E2E tests cover:
 - Merchant audit trail updates.
 - Mobile layout without horizontal overflow.
 
-The CI workflow runs linting, unit tests, production build, and Playwright E2E. A separate smoke script checks the deployed homepage, protected API route, merchant ops API, storage metadata, and ledger CSV export.
+The CI workflow runs linting, unit tests, production build, and Playwright E2E. A separate smoke script checks the deployed homepage, protected API route, facilitator receipt header, merchant ops API, storage metadata, and ledger CSV export.
 
 ## What Is Simulated
 
 The demo does not move real USDC. These pieces are simulated:
 
 - Signature creation.
-- Facilitator settlement.
+- Live facilitator network settlement.
 - Production database persistence for ledger rows.
 - Production database persistence for API keys.
 - Webhook delivery.
@@ -227,11 +242,12 @@ The value of the project is that each simulated piece has a clear replacement bo
 
 The next technical upgrades are:
 
-1. Replace `createChallenge` and `handleProtectedResource` internals with real x402 seller middleware.
-2. Replace `createAuthorization` with a real wallet signer or account-abstraction policy module.
-3. Replace the demo adapters in `merchantOpsStore.ts` with a durable repository backed by Postgres, Supabase, SQLite, or Neon.
-4. Add webhook verification and retry handling.
-5. Store settlement references, payload hashes, invoice ids, and policy verdicts.
+1. Replace `x402Facilitator.ts` with a real facilitator client.
+2. Replace `createChallenge` and `handleProtectedResource` internals with real x402 seller middleware.
+3. Replace `createAuthorization` with a real wallet signer or account-abstraction policy module.
+4. Replace the demo adapters in `merchantOpsStore.ts` with a durable repository backed by Postgres, Supabase, SQLite, or Neon.
+5. Add webhook verification and retry handling.
+6. Store settlement references, facilitator responses, payload hashes, invoice ids, and policy verdicts.
 
 More detailed boundary notes are in [`real-x402-upgrade.md`](real-x402-upgrade.md).
 Product readiness notes are in [`product-grade-roadmap.md`](product-grade-roadmap.md).

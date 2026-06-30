@@ -20,6 +20,7 @@ test("auto signer completes the x402 payment flow", async ({ page }) => {
   );
   await expect(page.getByTestId("exchange-feed")).toContainText("X-PAYMENT");
   await expect(page.getByTestId("exchange-feed")).toContainText("X-PAYMENT-RESPONSE");
+  await expect(page.getByTestId("exchange-feed")).toContainText("X-FACILITATOR-RECEIPT");
   await expect(page.getByTestId("payload-panel")).toContainText("tokenized_treasuries");
   await expect(page.getByTestId("event-list")).toContainText("settlement.received");
   await expect(page.getByTestId("event-list")).toContainText(/api_[0-9a-f]+/);

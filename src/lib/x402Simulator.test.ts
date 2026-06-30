@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import { handleMerchantOps } from "./merchantOpsApi";
 import { createFileMerchantOpsRepository } from "./merchantOpsStore";
 import { handleProtectedResource } from "./protectedResourceApi";
+import { createSimulatedFacilitator } from "./x402Facilitator";
 import {
   type LedgerEntry,
   agents,
@@ -159,9 +160,44 @@ describe("x402 simulator", () => {
 
     expect(paid.status).toBe(200);
     expect(paid.body.apiKey).toMatchObject({ validated: true });
+    expect(paid.body.facilitator).toMatchObject({ mode: "simulated", status: "settled" });
+    expect(paid.headers["X-FACILITATOR-RECEIPT"]).toMatch(/^fac_[0-9a-f]+$/);
     expect(paid.headers["X-PAYMENT-RESPONSE"]).toMatch(/^api_[0-9a-f]+$/);
-    expect(paid.body.payment).toMatchObject({ validated: true, asset: "USDC" });
+    expect(paid.body.payment).toMatchObject({
+      validated: true,
+      asset: "USDC",
+      facilitatorReceipt: paid.headers["X-FACILITATOR-RECEIPT"],
+    });
     expect(paid.body.data).toMatchObject({ market: "tokenized_treasuries" });
+  });
+
+  it("settles payment authorizations through a facilitator adapter boundary", () => {
+    const challenge = createChallenge(agents[0], resources[0], "base-sepolia");
+    const authorization = createAuthorization(agents[0], challenge.accepts[0]);
+    const facilitator = createSimulatedFacilitator("https://facilitator.example/settle");
+    const settlement = facilitator.settle({
+      agent: agents[0],
+      authorization: {
+        payload: authorization.payload,
+        signature: "0xtest_signature",
+      },
+      paymentHeader: authorization.header,
+      requirement: challenge.accepts[0],
+      resource: resources[0],
+    });
+
+    expect(settlement).toMatchObject({
+      accepted: true,
+      amount: "240000",
+      asset: "USDC",
+      mode: "http-ready",
+      network: "base-sepolia",
+      provider: "https://facilitator.example/settle",
+      status: "settled",
+    });
+    expect(settlement.receiptId).toMatch(/^fac_[0-9a-f]+$/);
+    expect(settlement.settlementRef).toMatch(/^api_[0-9a-f]+$/);
+    expect(settlement.transactionHash).toMatch(/^0x[0-9a-f]+$/);
   });
 
   it("models wallet signer approval states", () => {

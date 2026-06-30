@@ -57,6 +57,7 @@ type SignerState = "approved" | "expired" | "pending" | "ready" | "rejected";
 type PaidApiBody = {
   data?: Record<string, unknown>;
   error?: string;
+  facilitator?: Record<string, unknown>;
   paid?: number;
   payment?: Record<string, unknown>;
   settlementRef?: string;
@@ -317,6 +318,7 @@ function App() {
       paidResponse.headers.get("X-PAYMENT-RESPONSE") ??
       paidBody.settlementRef ??
       `client_${Date.now().toString(16).slice(-8)}`;
+    const facilitatorReceipt = paidResponse.headers.get("X-FACILITATOR-RECEIPT") ?? "local_receipt";
     const entry = {
       ...createLedgerEntry(selectedAgent, selectedResource, network, "settled", risk.note),
       settlementRef,
@@ -333,6 +335,7 @@ function App() {
       body: JSON.stringify(
         {
           status: paidResponse.status,
+          "X-FACILITATOR-RECEIPT": facilitatorReceipt,
           "X-PAYMENT-RESPONSE": settlementRef,
           paid: money(entry.amountUsd),
           ...paidBody,

@@ -45,6 +45,7 @@ This version uses a local simulator instead of moving real USDC. That keeps the 
 - Paid API marketplace for RWA yield data, wallet risk scoring, invoice scanning, and stablecoin route quotes.
 - x402-style HTTP exchange panel backed by a real `/api/protected-resource` route.
 - Server/API flow with `402`, `X-402-Version`, `X-PAYMENT`, and `X-PAYMENT-RESPONSE`.
+- x402 facilitator adapter that returns settlement receipts before paid data is released.
 - Wallet signer mock with Auto, Review, Reject, and Expire approval states.
 - Merchant ledger for settled and blocked API calls.
 - Merchant ledger CSV export for lightweight accounting and reconciliation.
@@ -54,7 +55,7 @@ This version uses a local simulator instead of moving real USDC. That keeps the 
 - Server-side merchant operations API for ledger rows, API keys, reconciliation events, CSV export, and audit trail.
 - Optional file-backed merchant ops repository for local durable storage.
 - Risk controls for allowlisting, autopay, settlement network, and per-call spend caps.
-- Unit-tested payment requirement creation, authorization payloads, signer approval states, policy blocks, merchant ops API, API key scope enforcement, reconciliation events, and settlement records.
+- Unit-tested payment requirement creation, authorization payloads, facilitator receipts, signer approval states, policy blocks, merchant ops API, API key scope enforcement, reconciliation events, and settlement records.
 - Liquid-glass responsive dashboard UI for desktop and mobile.
 
 ## Tech stack
@@ -89,6 +90,15 @@ npm run dev
 
 Without those variables, the app uses the in-memory demo repository so Vercel can run without external credentials.
 
+Optional facilitator endpoint marker:
+
+```powershell
+$env:X402_FACILITATOR_URL="https://facilitator.example/settle"
+npm run dev
+```
+
+The current adapter still settles locally for demo safety, but the paid API response will expose `http-ready` facilitator metadata so the replacement boundary is visible.
+
 ## Quality checks
 
 ```bash
@@ -121,6 +131,7 @@ src/
   App.css                  Liquid-glass payment-operations interface
   lib/protectedResourceApi.ts
                            Shared protected-resource API handler
+  lib/x402Facilitator.ts   Facilitator adapter boundary and settlement receipt metadata
   lib/x402Simulator.ts     x402 challenge, signer approval, payment authorization, risk policy, API keys, reconciliation, ledger helpers
   lib/x402Simulator.test.ts
 tests/
@@ -146,11 +157,11 @@ See [`docs/real-x402-upgrade.md`](docs/real-x402-upgrade.md) for the implementat
 
 High-level path:
 
-1. Replace `src/lib/x402Simulator.ts` with real seller middleware and buyer client wiring.
-2. Protect paid API routes and return exact USDC payment requirements.
-3. Wrap agent requests with an x402-aware client and wallet signer approval flow.
-4. Replace the demo storage adapter with Postgres, Supabase, SQLite, or Neon for production persistence.
-5. Add webhook reconciliation for failed settlement, refunds, duplicate payments, and accounting exports.
+1. Replace `src/lib/x402Facilitator.ts` with a real x402 facilitator client.
+2. Replace `src/lib/x402Simulator.ts` with real seller middleware and buyer client wiring.
+3. Protect paid API routes and return exact USDC payment requirements.
+4. Wrap agent requests with an x402-aware client and wallet signer approval flow.
+5. Replace the demo storage adapter with Postgres, Supabase, SQLite, or Neon for production persistence.
 
 Relevant docs:
 
@@ -181,6 +192,6 @@ vercel --prod
 ## Resume bullets
 
 - Built an x402-style stablecoin payment desk for AI agents buying paid API resources.
-- Implemented a real protected API route with 402 challenge handling, wallet signer approval states, signed payment retry validation, merchant ledger, API key rotation, webhook reconciliation, and risk-policy checks in React + TypeScript.
-- Added unit and Playwright E2E tests for payment requirement creation, signer decisions, authorization payloads, protected API responses, API key scope enforcement, policy blocks, merchant ops API, API key rotation, CSV export, mobile layout, reconciliation events, audit trail, and settlement records.
+- Implemented a real protected API route with 402 challenge handling, wallet signer approval states, signed payment retry validation, facilitator receipt handling, merchant ledger, API key rotation, webhook reconciliation, and risk-policy checks in React + TypeScript.
+- Added unit and Playwright E2E tests for payment requirement creation, signer decisions, authorization payloads, protected API responses, facilitator receipts, API key scope enforcement, policy blocks, merchant ops API, API key rotation, CSV export, mobile layout, reconciliation events, audit trail, and settlement records.
 - Designed a liquid-glass responsive dashboard for agent budgets, USDC-style payment authorization, failed signer approvals, paid payload delivery, merchant API keys, CSV export, and reconciliation events.
