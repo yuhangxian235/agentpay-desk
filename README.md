@@ -36,6 +36,7 @@ This version uses a local simulator instead of moving real USDC. That keeps the 
 
 - [90-second captioned walkthrough](docs/demo/agentpay-90s-walkthrough.mp4)
 - [Spoken script and shot list](docs/demo/90-second-walkthrough.md)
+- [Technical write-up: x402-style payments for AI agents](docs/agent-payment-technical-writeup.md)
 
 ## Features
 
@@ -114,6 +115,8 @@ tests/
 api/
   protected-resource.ts    Vercel serverless API route
 docs/
+  agent-payment-technical-writeup.md
+                           Product and technical write-up for the agent payment flow
   real-x402-upgrade.md     Notes for replacing the simulator with production wiring
   screenshots/             README screenshots
 ```
