@@ -28,7 +28,9 @@ type ProtectedResourceResult = {
 
 const networks: Network[] = ["base", "base-sepolia", "polygon"];
 
-export function handleProtectedResource(input: ProtectedResourceInput): ProtectedResourceResult {
+export async function handleProtectedResource(
+  input: ProtectedResourceInput,
+): Promise<ProtectedResourceResult> {
   const agent = agents.find((item) => item.id === input.agentId);
   const resource = resources.find((item) => item.id === input.resourceId);
   const network = networks.find((item) => item === input.network);
@@ -104,7 +106,7 @@ export function handleProtectedResource(input: ProtectedResourceInput): Protecte
     };
   }
 
-  const settlement = x402Facilitator.settle({
+  const settlement = await x402Facilitator.settle({
     agent,
     authorization: decoded,
     paymentHeader: input.paymentHeader,

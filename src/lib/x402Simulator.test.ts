@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { handleMerchantOps } from "./merchantOpsApi";
 import { createFileMerchantOpsRepository } from "./merchantOpsStore";
 import { handleProtectedResource } from "./protectedResourceApi";
-import { createSimulatedFacilitator } from "./x402Facilitator";
+import { createHttpFacilitator, createSimulatedFacilitator } from "./x402Facilitator";
 import {
   type LedgerEntry,
   agents,
@@ -104,8 +104,8 @@ describe("x402 simulator", () => {
     expect(csv).toContain(",0.12,");
   });
 
-  it("returns a 402 response when the protected API is called without payment", () => {
-    const response = handleProtectedResource({
+  it("returns a 402 response when the protected API is called without payment", async () => {
+    const response = await handleProtectedResource({
       agentId: agents[0].id,
       apiKeyHeader: findDemoApiCredential(resources[0].id)?.secret,
       resourceId: resources[0].id,
@@ -117,8 +117,8 @@ describe("x402 simulator", () => {
     expect(response.body.error).toBe("X-PAYMENT header is required");
   });
 
-  it("requires an API key before returning a payment challenge", () => {
-    const response = handleProtectedResource({
+  it("requires an API key before returning a payment challenge", async () => {
+    const response = await handleProtectedResource({
       agentId: agents[0].id,
       resourceId: resources[0].id,
       network: "base-sepolia",
@@ -129,8 +129,8 @@ describe("x402 simulator", () => {
     expect(response.body.error).toBe("X-API-Key header is required");
   });
 
-  it("rejects API keys that are not scoped for the requested resource", () => {
-    const response = handleProtectedResource({
+  it("rejects API keys that are not scoped for the requested resource", async () => {
+    const response = await handleProtectedResource({
       agentId: agents[0].id,
       apiKeyHeader: demoApiCredentials[1].secret,
       resourceId: resources[0].id,
@@ -141,8 +141,8 @@ describe("x402 simulator", () => {
     expect(response.body.error).toBe("API key is not scoped for this resource");
   });
 
-  it("returns paid data when the protected API receives a valid X-PAYMENT header", () => {
-    const challenge = handleProtectedResource({
+  it("returns paid data when the protected API receives a valid X-PAYMENT header", async () => {
+    const challenge = await handleProtectedResource({
       agentId: agents[0].id,
       apiKeyHeader: findDemoApiCredential(resources[0].id)?.secret,
       resourceId: resources[0].id,
@@ -150,7 +150,7 @@ describe("x402 simulator", () => {
     });
     const paymentChallenge = challenge.body as ReturnType<typeof createChallenge>;
     const authorization = createAuthorization(agents[0], paymentChallenge.accepts[0]);
-    const paid = handleProtectedResource({
+    const paid = await handleProtectedResource({
       agentId: agents[0].id,
       apiKeyHeader: findDemoApiCredential(resources[0].id)?.secret,
       resourceId: resources[0].id,
@@ -171,11 +171,11 @@ describe("x402 simulator", () => {
     expect(paid.body.data).toMatchObject({ market: "tokenized_treasuries" });
   });
 
-  it("settles payment authorizations through a facilitator adapter boundary", () => {
+  it("settles payment authorizations through a facilitator adapter boundary", async () => {
     const challenge = createChallenge(agents[0], resources[0], "base-sepolia");
     const authorization = createAuthorization(agents[0], challenge.accepts[0]);
     const facilitator = createSimulatedFacilitator("https://facilitator.example/settle");
-    const settlement = facilitator.settle({
+    const settlement = await facilitator.settle({
       agent: agents[0],
       authorization: {
         payload: authorization.payload,
@@ -198,6 +198,56 @@ describe("x402 simulator", () => {
     expect(settlement.receiptId).toMatch(/^fac_[0-9a-f]+$/);
     expect(settlement.settlementRef).toMatch(/^api_[0-9a-f]+$/);
     expect(settlement.transactionHash).toMatch(/^0x[0-9a-f]+$/);
+  });
+
+  it("can settle through an HTTP facilitator client with a fallback-safe contract", async () => {
+    const challenge = createChallenge(agents[0], resources[0], "base-sepolia");
+    const authorization = createAuthorization(agents[0], challenge.accepts[0]);
+    const requests: unknown[] = [];
+    const facilitator = createHttpFacilitator({
+      endpoint: "https://facilitator.example/settle",
+      fetcher: (async (_url, init) => {
+        requests.push(JSON.parse(String(init?.body)));
+
+        return new Response(
+          JSON.stringify({
+            receiptId: "fac_live_1234",
+            settlementRef: "api_live_5678",
+            transactionHash: "0xabc123",
+            verifiedAt: "2026-07-01T00:00:00.000Z",
+          }),
+          {
+            headers: {
+              "Content-Type": "application/json",
+            },
+            status: 200,
+          },
+        );
+      }) as typeof fetch,
+      timeoutMs: 50,
+    });
+
+    const settlement = await facilitator.settle({
+      agent: agents[0],
+      authorization: {
+        payload: authorization.payload,
+        signature: "0xtest_signature",
+      },
+      paymentHeader: authorization.header,
+      requirement: challenge.accepts[0],
+      resource: resources[0],
+    });
+
+    expect(requests).toHaveLength(1);
+    expect(settlement).toMatchObject({
+      mode: "live",
+      provider: "https://facilitator.example/settle",
+      receiptId: "fac_live_1234",
+      settlementRef: "api_live_5678",
+      status: "settled",
+      transactionHash: "0xabc123",
+    });
+    expect(settlement.facilitatorResponseHash).toMatch(/^[0-9a-f]+$/);
   });
 
   it("models wallet signer approval states", () => {

@@ -37,6 +37,7 @@ function protectedResourceApi(): Plugin {
     name: "agentpay-protected-resource-api",
     configureServer(server) {
       server.middlewares.use("/api/protected-resource", (request, response) => {
+        void (async () => {
         if (request.method !== "GET") {
           response.statusCode = 405;
           response.setHeader("Content-Type", "application/json");
@@ -45,7 +46,7 @@ function protectedResourceApi(): Plugin {
         }
 
         const url = new URL(request.url ?? "", "http://localhost/api/protected-resource");
-        const result = handleProtectedResource({
+        const result = await handleProtectedResource({
           agentId: url.searchParams.get("agentId"),
           apiKeyHeader: readHeader(request.headers["x-api-key"]),
           resourceId: url.searchParams.get("resourceId"),
@@ -61,6 +62,7 @@ function protectedResourceApi(): Plugin {
         }
 
         response.end(JSON.stringify(result.body));
+        })();
       });
     },
   };

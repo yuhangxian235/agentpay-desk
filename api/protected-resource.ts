@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { handleProtectedResource } from "../src/lib/protectedResourceApi.js";
 
-export default function handler(request: IncomingMessage, response: ServerResponse) {
+export default async function handler(request: IncomingMessage, response: ServerResponse) {
   if (request.method !== "GET") {
     response.statusCode = 405;
     response.setHeader("Content-Type", "application/json");
@@ -10,7 +10,7 @@ export default function handler(request: IncomingMessage, response: ServerRespon
   }
 
   const url = new URL(request.url ?? "", `https://${request.headers.host ?? "localhost"}`);
-  const result = handleProtectedResource({
+  const result = await handleProtectedResource({
     agentId: url.searchParams.get("agentId"),
     apiKeyHeader: readHeader(request.headers["x-api-key"]),
     resourceId: url.searchParams.get("resourceId"),

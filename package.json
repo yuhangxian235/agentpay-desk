@@ -9,7 +9,7 @@
     "lint": "tsc -b --pretty false",
     "preview": "vite preview",
     "test": "vitest run src",
-    "test:e2e": "playwright test",
+    "test:e2e": "node scripts/run-e2e.mjs",
     "test:smoke": "node scripts/smoke-live.mjs"
   },
   "dependencies": {

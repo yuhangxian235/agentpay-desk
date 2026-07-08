@@ -191,7 +191,7 @@ Paid responses now pass through `src/lib/x402Facilitator.ts`. The default adapte
 X-PAYMENT -> facilitator adapter -> receipt id -> X-FACILITATOR-RECEIPT -> X-PAYMENT-RESPONSE
 ```
 
-If `X402_FACILITATOR_URL` is configured, the adapter marks itself as `http-ready` in the response metadata. It still settles locally today; the next production step is replacing that adapter internals with a real facilitator request and persisting the response body.
+If `X402_FACILITATOR_URL` is configured, the adapter posts the payment envelope to that URL. Successful responses are marked `live`; errors or timeouts are marked `http-fallback` and settle locally so the public demo remains reliable.
 
 ## Risk Model
 
@@ -231,7 +231,7 @@ The CI workflow runs linting, unit tests, production build, and Playwright E2E. 
 The demo does not move real USDC. These pieces are simulated:
 
 - Signature creation.
-- Live facilitator network settlement.
+- Mainnet facilitator settlement with real funds.
 - Production database persistence for ledger rows.
 - Production database persistence for API keys.
 - Webhook delivery.
@@ -242,7 +242,7 @@ The value of the project is that each simulated piece has a clear replacement bo
 
 The next technical upgrades are:
 
-1. Replace `x402Facilitator.ts` with a real facilitator client.
+1. Point `x402Facilitator.ts` at a real facilitator endpoint and persist the live response body.
 2. Replace `createChallenge` and `handleProtectedResource` internals with real x402 seller middleware.
 3. Replace `createAuthorization` with a real wallet signer or account-abstraction policy module.
 4. Replace the demo adapters in `merchantOpsStore.ts` with a durable repository backed by Postgres, Supabase, SQLite, or Neon.

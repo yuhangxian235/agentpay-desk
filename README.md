@@ -90,14 +90,14 @@ npm run dev
 
 Without those variables, the app uses the in-memory demo repository so Vercel can run without external credentials.
 
-Optional facilitator endpoint marker:
+Optional HTTP facilitator client:
 
 ```powershell
 $env:X402_FACILITATOR_URL="https://facilitator.example/settle"
 npm run dev
 ```
 
-The current adapter still settles locally for demo safety, but the paid API response will expose `http-ready` facilitator metadata so the replacement boundary is visible.
+When this is set, the protected API posts the payment envelope to the configured facilitator URL. If the endpoint fails or times out, the demo falls back to a local receipt so the UI remains usable.
 
 ## Quality checks
 
