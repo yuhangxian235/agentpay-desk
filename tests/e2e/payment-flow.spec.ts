@@ -104,8 +104,9 @@ test("mobile layout avoids horizontal overflow", async ({ page }) => {
   await page.goto("/");
 
   await expect(page.getByText("AgentPay Desk")).toBeVisible();
+  await expect(page.getByTestId("demo-brief")).toContainText("No checkout page");
   await expect(page.getByTestId("signer-mode-auto")).toBeVisible();
-  await expect(page.getByTestId("operations-panel")).toContainText("API keys & webhooks");
+  await expect(page.getByTestId("operations-panel")).toContainText("Access keys & settlement proof");
 
   const overflow = await page.evaluate(() => {
     const root = document.documentElement;

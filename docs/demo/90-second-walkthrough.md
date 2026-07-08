@@ -11,7 +11,7 @@ AgentPay Desk is a stablecoin payment desk for AI agents that need to buy paid A
 The buyer chooses an agent, a paid API resource, a settlement network, and a wallet signer mode. The demo keeps funds simulated, but the protocol boundaries match an x402-style integration.
 
 22-35s
-When I click Run x402 purchase, the first request hits the protected `/api/protected-resource` route without payment.
+When I click Run guided payment, the first request hits the protected `/api/protected-resource` route without payment.
 
 35-45s
 The seller returns HTTP `402 Payment Required` with `X-402-Version` and an accepted USDC payment requirement.
@@ -32,7 +32,7 @@ The merchant ledger records either settled revenue or a held payment block, and 
 
 1. Start on the dashboard with Quanta Scout and Tokenized T-bill yield selected.
 2. Point at the buyer controls and Wallet signer modes.
-3. Click `Run x402 purchase`.
+3. Click `Run guided payment`.
 4. Show the initial GET request to `/api/protected-resource`.
 5. Show the `402 Payment Required` response.
 6. Show Wallet approval pending, then signed `X-PAYMENT`.

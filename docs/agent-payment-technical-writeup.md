@@ -144,7 +144,7 @@ Agent payments are not just a buyer problem. The merchant needs operational cont
 - CSV export for accounting.
 - Audit events for reset, ledger append, and key rotation.
 
-That is why the right panel shows both `Merchant ledger` and `API keys & webhooks`. It helps the demo read like infrastructure, not only a toy client flow.
+That is why the UI separates `Seller receipt book` from `Access keys & settlement proof`. It helps the demo read like merchant infrastructure, not only a toy client flow.
 
 The merchant operations backend is:
 

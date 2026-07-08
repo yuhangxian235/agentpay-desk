@@ -1,6 +1,8 @@
 import {
   Activity,
+  ArrowRight,
   Bot,
+  BookOpenCheck,
   CheckCircle2,
   Clock3,
   CircleDollarSign,
@@ -9,6 +11,7 @@ import {
   DatabaseZap,
   Download,
   KeyRound,
+  LockKeyhole,
   Play,
   ReceiptText,
   RefreshCcw,
@@ -77,8 +80,8 @@ const starterExchange: ExchangeLine[] = [
     id: "idle",
     tone: "request",
     label: "Ready",
-    title: "Waiting for an agent purchase",
-    body: "Select an agent, choose a paid API resource, then run the x402 flow.",
+    title: "Ready for a paid API call",
+    body: "The agent will ask for data, the seller will ask for payment, and the wallet will decide whether to sign.",
   },
 ];
 
@@ -130,6 +133,7 @@ function App() {
     .reduce((sum, entry) => sum + entry.amountUsd, 0);
   const policyPreview = evaluateRisk(selectedAgent, selectedResource, ledger, riskSettings);
   const signerCopy = signerStateCopy(signerState, signerMode);
+  const phaseCopy = phaseExplanation(phase);
   const reconciliationEvents = useMemo(() => buildReconciliationEvents(ledger), [ledger]);
 
   useEffect(() => {
@@ -501,45 +505,57 @@ function App() {
         </div>
       </header>
 
-      <section className="metrics-strip" aria-label="Merchant payment metrics">
-        <Metric
-          icon={<CircleDollarSign size={18} />}
-          label="Settled revenue"
-          value={money(revenue)}
-          detail={`${settledLedger.length} paid calls`}
-        />
-        <Metric
-          icon={<Activity size={18} />}
-          label="402 challenges"
-          value={String(ledger.length + (phase === "challenge" ? 1 : 0))}
-          detail={`${blockedCount} policy blocks`}
-        />
-        <Metric
-          icon={<WalletCards size={18} />}
-          label="Agent balance"
-          value={money(selectedAgent.balanceUsd - spentByAgent)}
-          detail={`${money(selectedAgent.dailyLimitUsd)} daily limit`}
-        />
-        <Metric
-          icon={<ShieldCheck size={18} />}
-          label="Policy verdict"
-          value={policyPreview.allowed ? "Ready" : "Blocked"}
-          detail={policyPreview.note}
-          tone={policyPreview.allowed ? "good" : "danger"}
-        />
+      <section className="demo-brief" data-testid="demo-brief" aria-label="Agent payment overview">
+        <div className="brief-copy">
+          <p className="eyebrow">90 second demo</p>
+          <h2>An AI agent buys one paid API call. No checkout page.</h2>
+          <p>
+            Watch one request move from access check, to payment challenge, to wallet signature, to
+            a merchant receipt. The left side controls the buyer. The center shows the HTTP
+            conversation. The right side shows what the seller records.
+          </p>
+          <div className="brief-route" aria-label="Selected payment route">
+            <span>{selectedAgent.name}</span>
+            <ArrowRight size={16} />
+            <span>{selectedResource.name}</span>
+            <ArrowRight size={16} />
+            <span>{merchant.name}</span>
+          </div>
+        </div>
+
+        <div className="brief-flow" aria-label="Payment story">
+          <StoryStep
+            icon={<Bot size={18} />}
+            marker="1"
+            title="Buyer asks for data"
+            detail={`${selectedAgent.name} requests ${selectedResource.name} with a scoped API key.`}
+          />
+          <StoryStep
+            icon={<LockKeyhole size={18} />}
+            marker="2"
+            title="Seller asks for payment"
+            detail={`The API returns 402 because the call costs ${money(selectedResource.priceUsd)}.`}
+          />
+          <StoryStep
+            icon={<ReceiptText size={18} />}
+            marker="3"
+            title="Receipt unlocks payload"
+            detail="The wallet signs, the facilitator returns a receipt, and the seller records the call."
+          />
+        </div>
       </section>
 
       <section className="workspace-grid">
         <aside className="panel buyer-panel">
           <PanelHeader
             icon={<Bot size={19} />}
-            kicker="Buyer"
-            title="Agent control"
-            detail="Autonomous client with a spending policy"
+            kicker="Step 1"
+            title="Buyer setup"
+            detail="Choose the agent, the API, and how strict the wallet should be"
           />
 
           <div className="section-block">
-            <div className="section-label">Agent wallet</div>
+            <div className="section-label">Who is buying?</div>
             <div className="agent-list">
               {agents.map((agent) => (
                 <button
@@ -560,7 +576,7 @@ function App() {
           </div>
 
           <div className="section-block">
-            <div className="section-label">Paid API resource</div>
+            <div className="section-label">What data does it want?</div>
             <div className="resource-list">
               {resources.map((resource) => (
                 <button
@@ -585,7 +601,7 @@ function App() {
           </div>
 
           <div className="section-block">
-            <div className="section-label">Settlement network</div>
+            <div className="section-label">Where should payment settle?</div>
             <div className="segmented-control" role="group" aria-label="Settlement network">
               {networks.map((item) => (
                 <button
@@ -601,7 +617,7 @@ function App() {
           </div>
 
           <div className="section-block">
-            <div className="section-label">Wallet signer</div>
+            <div className="section-label">What does the wallet do?</div>
             <div className="segmented-control signer-control" role="group" aria-label="Wallet signer mode">
               {signerModes.map((mode) => (
                 <button
@@ -676,19 +692,26 @@ function App() {
             disabled={isRunning}
           >
             <Play size={18} fill="currentColor" />
-            <span>{isRunning ? "Running flow" : "Run x402 purchase"}</span>
+            <span>{isRunning ? "Running payment" : "Run guided payment"}</span>
           </button>
         </aside>
 
         <section className="panel exchange-panel">
           <PanelHeader
             icon={<Code2 size={19} />}
-            kicker="Protocol"
-            title="HTTP exchange"
-            detail="402 challenge, signed retry, settlement response"
+            kicker="Step 2"
+            title="Payment conversation"
+            detail="The exact request, payment challenge, signature, and receipt"
           />
 
           <PhaseRail phase={phase} />
+          <div className={`phase-explainer ${phase}`}>
+            <BookOpenCheck size={17} />
+            <div>
+              <strong>{phaseCopy.title}</strong>
+              <span>{phaseCopy.detail}</span>
+            </div>
+          </div>
 
           <div className="exchange-feed" data-testid="exchange-feed">
             {exchange.map((line) => (
@@ -709,9 +732,9 @@ function App() {
         <aside className="panel merchant-panel">
           <PanelHeader
             icon={<ReceiptText size={19} />}
-            kicker="Seller"
-            title="Merchant ledger"
-            detail="Paid API calls and policy outcomes"
+            kicker="Step 3"
+            title="Seller receipt book"
+            detail="The merchant records paid calls, held calls, and settlement references"
           />
 
           <div className="seller-account">
@@ -757,13 +780,48 @@ function App() {
         </aside>
       </section>
 
+      <section className="metrics-strip" aria-label="Merchant payment metrics">
+        <Metric
+          icon={<CircleDollarSign size={18} />}
+          label="Settled revenue"
+          value={money(revenue)}
+          detail={`${settledLedger.length} paid calls`}
+        />
+        <Metric
+          icon={<Activity size={18} />}
+          label="Pay-first responses"
+          value={String(ledger.length + (phase === "challenge" ? 1 : 0))}
+          detail={`${blockedCount} policy blocks`}
+        />
+        <Metric
+          icon={<WalletCards size={18} />}
+          label="Agent balance"
+          value={money(selectedAgent.balanceUsd - spentByAgent)}
+          detail={`${money(selectedAgent.dailyLimitUsd)} daily limit`}
+        />
+        <Metric
+          icon={<ShieldCheck size={18} />}
+          label="Policy verdict"
+          value={policyPreview.allowed ? "Ready" : "Blocked"}
+          detail={policyPreview.note}
+          tone={policyPreview.allowed ? "good" : "danger"}
+        />
+      </section>
+
+      <section className="plain-language-strip" aria-label="Payment terms in plain language">
+        <TermChip term="API key" meaning="Who may call this paid endpoint" />
+        <TermChip term="402" meaning="The seller says payment is required" />
+        <TermChip term="X-PAYMENT" meaning="The wallet-signed payment proof" />
+        <TermChip term="Ledger" meaning="The seller's record of what happened" />
+      </section>
+
       <section className="bottom-grid">
         <article className="panel payload-panel" data-testid="payload-panel">
           <PanelHeader
             icon={<DatabaseZap size={19} />}
             kicker="Response"
-            title="Purchased payload"
-            detail="Data is only released after payment settles"
+            title="Paid API result"
+            detail="The response appears only after a receipt exists"
           />
           {payload ? (
             <pre className="payload-preview">{JSON.stringify(payload, null, 2)}</pre>
@@ -779,8 +837,8 @@ function App() {
           <PanelHeader
             icon={<ServerCog size={19} />}
             kicker="Upgrade path"
-            title="Production wiring"
-            detail="Where the simulator becomes a real x402 integration"
+            title="What becomes real next"
+            detail="The places where demo adapters become production services"
           />
           <div className="integration-steps">
             <div>
@@ -792,8 +850,8 @@ function App() {
               <p>Wrap fetch with an x402 client, connect a wallet signer, and retry with `X-PAYMENT`.</p>
             </div>
             <div>
-              <span>Ledger</span>
-              <p>Store `X-PAYMENT-RESPONSE`, invoice metadata, agent policy result, and payload hash.</p>
+              <span>Facilitator</span>
+              <p>Send `X-PAYMENT` to a live facilitator and store the returned receipt.</p>
             </div>
           </div>
         </article>
@@ -802,7 +860,7 @@ function App() {
           <PanelHeader
             icon={<KeyRound size={19} />}
             kicker="Merchant ops"
-            title="API keys & webhooks"
+            title="Access keys & settlement proof"
             detail={
               opsSyncedAt
                 ? `Server state synced ${formatTime(opsSyncedAt)}`
@@ -897,6 +955,40 @@ function App() {
         </article>
       </section>
     </main>
+  );
+}
+
+function StoryStep({
+  detail,
+  icon,
+  marker,
+  title,
+}: {
+  detail: string;
+  icon: React.ReactNode;
+  marker: string;
+  title: string;
+}) {
+  return (
+    <article className="story-step">
+      <div className="story-marker">
+        {icon}
+        <span>{marker}</span>
+      </div>
+      <div>
+        <strong>{title}</strong>
+        <small>{detail}</small>
+      </div>
+    </article>
+  );
+}
+
+function TermChip({ meaning, term }: { meaning: string; term: string }) {
+  return (
+    <div className="term-chip">
+      <b>{term}</b>
+      <span>{meaning}</span>
+    </div>
   );
 }
 
@@ -996,6 +1088,48 @@ function PhaseRail({ phase }: { phase: Phase }) {
       ))}
     </div>
   );
+}
+
+function phaseExplanation(phase: Phase): { detail: string; title: string } {
+  if (phase === "request") {
+    return {
+      title: "The agent is asking for the API response",
+      detail: "The request includes an API key, but no payment proof yet.",
+    };
+  }
+
+  if (phase === "challenge") {
+    return {
+      title: "The seller refuses to serve data until payment exists",
+      detail: "HTTP 402 tells the agent the exact price, asset, recipient, and network.",
+    };
+  }
+
+  if (phase === "signature") {
+    return {
+      title: "The wallet policy decides whether to sign",
+      detail: "If policy allows it, the signed X-PAYMENT header is attached to the retry.",
+    };
+  }
+
+  if (phase === "settled") {
+    return {
+      title: "The paid response is unlocked",
+      detail: "A facilitator receipt and settlement reference prove why the seller released data.",
+    };
+  }
+
+  if (phase === "blocked") {
+    return {
+      title: "The payment was held before funds could move",
+      detail: "The merchant still records the attempt, but no paid payload is released.",
+    };
+  }
+
+  return {
+    title: "Start with one guided payment",
+    detail: "The feed will show the request, payment challenge, wallet signature, and receipt.",
+  };
 }
 
 function sleep(ms: number) {

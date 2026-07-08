@@ -43,7 +43,7 @@ This version uses a local simulator instead of moving real USDC. That keeps the 
 
 - AI agent buyer selection with wallet balance, daily limit, trust score, and allowlist state.
 - Paid API marketplace for RWA yield data, wallet risk scoring, invoice scanning, and stablecoin route quotes.
-- x402-style HTTP exchange panel backed by a real `/api/protected-resource` route.
+- Guided payment conversation panel backed by a real `/api/protected-resource` route.
 - Server/API flow with `402`, `X-402-Version`, `X-PAYMENT`, and `X-PAYMENT-RESPONSE`.
 - x402 facilitator adapter that returns settlement receipts before paid data is released.
 - Wallet signer mock with Auto, Review, Reject, and Expire approval states.
@@ -114,7 +114,7 @@ The `Live Smoke` workflow can also be run manually and checks the production Ver
 
 ## Demo script
 
-1. Click `Run x402 purchase` with `Quanta Scout` selected.
+1. Click `Run guided payment` with `Quanta Scout` selected.
 2. Point out the first unauthenticated request to `/api/protected-resource`.
 3. Show the real HTTP `402 Payment Required` response, `X-402-Version`, wallet approval, signed `X-PAYMENT` retry, and final `X-PAYMENT-RESPONSE`.
 4. Switch Wallet signer to `Reject` or `Expire` and rerun to show that failed approval stops before funds can move.
