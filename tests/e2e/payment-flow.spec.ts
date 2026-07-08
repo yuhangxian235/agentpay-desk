@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 
 test.beforeEach(async ({ request }) => {
@@ -9,8 +9,13 @@ test.beforeEach(async ({ request }) => {
   });
 });
 
+async function openWorkbench(page: Page) {
+  await page.getByTestId("advanced-toggle").click();
+}
+
 test("auto signer completes the x402 payment flow", async ({ page }) => {
   await page.goto("/");
+  await openWorkbench(page);
 
   await page.getByTestId("run-purchase").click();
 
@@ -37,11 +42,12 @@ test("agent autopilot buys a paid API through tool-call trace", async ({ page })
   await expect(page.getByTestId("agent-trace")).toContainText("retry_with_x_payment");
   await expect(page.getByTestId("agent-answer")).toContainText("I paid");
   await expect(page.getByTestId("agent-answer")).toContainText(/api_[0-9a-f]+/);
-  await expect(page.getByTestId("payload-panel")).toContainText("tokenized_treasuries");
+  await expect(page.getByText("Paid data delivered")).toBeVisible();
 });
 
 test("rejected signer blocks before X-PAYMENT is attached", async ({ page }) => {
   await page.goto("/");
+  await openWorkbench(page);
 
   await page.getByTestId("signer-mode-reject").click();
   await page.getByTestId("run-purchase").click();
@@ -55,6 +61,7 @@ test("rejected signer blocks before X-PAYMENT is attached", async ({ page }) => 
 
 test("review signer completes after manual approval", async ({ page }) => {
   await page.goto("/");
+  await openWorkbench(page);
 
   await page.getByTestId("signer-mode-review").click();
   await page.getByTestId("run-purchase").click();
@@ -68,6 +75,7 @@ test("review signer completes after manual approval", async ({ page }) => {
 
 test("expired signer holds the payment before retry", async ({ page }) => {
   await page.goto("/");
+  await openWorkbench(page);
 
   await page.getByTestId("signer-mode-expire").click();
   await page.getByTestId("run-purchase").click();
@@ -81,6 +89,7 @@ test("expired signer holds the payment before retry", async ({ page }) => {
 
 test("merchant can rotate an API key", async ({ page }) => {
   await page.goto("/");
+  await openWorkbench(page);
 
   const ops = page.getByTestId("operations-panel");
   await expect(page.getByTestId("storage-adapter")).toContainText("In-memory demo");
@@ -96,6 +105,7 @@ test("merchant can rotate an API key", async ({ page }) => {
 
 test("merchant can export the ledger as CSV", async ({ page }) => {
   await page.goto("/");
+  await openWorkbench(page);
 
   const downloadPromise = page.waitForEvent("download");
   await page.getByTestId("export-ledger").click();
@@ -118,6 +128,7 @@ test("mobile layout avoids horizontal overflow", async ({ page }) => {
 
   await expect(page.getByText("AgentPay Desk")).toBeVisible();
   await expect(page.getByTestId("demo-brief")).toContainText("No checkout page");
+  await openWorkbench(page);
   await expect(page.getByTestId("signer-mode-auto")).toBeVisible();
   await expect(page.getByTestId("operations-panel")).toContainText("Access keys & settlement proof");
 

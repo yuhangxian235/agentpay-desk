@@ -173,6 +173,17 @@ function App() {
       }),
     [agentPrompt, ledger, network, riskSettings, selectedAgent, selectedResource.id, signerMode],
   );
+  const displayedAgentPlan = agentPlan ?? agentPreviewPlan;
+  const humanDecision = humanDecisionCopy(agentAnswer, isAgentRunning, phase);
+  const humanReceipt = agentAnswer?.match(/api_[0-9a-f]+/)?.[0] ?? "Not issued yet";
+  const humanPolicy =
+    agentAnswer === null
+      ? isAgentRunning
+        ? "Checking"
+        : "Ready"
+      : agentAnswer.includes("I paid")
+        ? "Approved"
+        : "Stopped";
 
   useEffect(() => {
     void refreshMerchantState();
@@ -673,13 +684,13 @@ function App() {
       <section className="panel autopilot-panel" data-testid="agent-autopilot">
         <PanelHeader
           icon={<Sparkles size={19} />}
-          kicker="Agent runtime"
-          title="Ask the agent to buy data"
-          detail="Natural language goal, tool-call trace, payment policy, and receipt"
+          kicker="Human-readable agent payment"
+          title="Can this agent safely pay?"
+          detail="Ask in plain English, then see the price, policy decision, and receipt before the protocol logs."
         />
         <div className="autopilot-layout">
           <div className="autopilot-command">
-            <label htmlFor="agent-prompt">Agent task</label>
+            <label htmlFor="agent-prompt">What should the agent get?</label>
             <textarea
               data-testid="agent-prompt"
               id="agent-prompt"
@@ -688,10 +699,10 @@ function App() {
               onChange={(event) => setAgentPrompt(event.target.value)}
             />
             <div className="autopilot-policy">
-              <span>Budget</span>
-              <strong>{money((agentPlan ?? agentPreviewPlan).budgetUsd)}</strong>
-              <span>Chosen API</span>
-              <strong>{(agentPlan ?? agentPreviewPlan).resource.name}</strong>
+              <span>Budget parsed from task</span>
+              <strong>{money(displayedAgentPlan.budgetUsd)}</strong>
+              <span>Likely API</span>
+              <strong>{displayedAgentPlan.resource.name}</strong>
             </div>
             <button
               className="primary-action"
@@ -707,30 +718,60 @@ function App() {
             </button>
           </div>
 
-          <div className="agent-trace" data-testid="agent-trace">
-            {(agentTrace.length > 0 ? agentTrace : starterAgentTrace()).map((step) => (
-              <AgentTraceRow key={step.id} step={step} />
-            ))}
-          </div>
+          <div className={`human-payment-summary ${humanDecision.tone}`}>
+            <div className="decision-card">
+              <span>Decision</span>
+              <strong>{humanDecision.title}</strong>
+              <p>{humanDecision.detail}</p>
+            </div>
 
-          <div className="agent-answer" data-testid="agent-answer">
-            <span>Agent answer</span>
-            <strong>{agentAnswer ?? "Waiting for an agent-run paid API call"}</strong>
-            <small>
-              The trace shows tool calls and observations only. It does not expose private chain-of-thought.
-            </small>
+            <div className="human-facts" aria-label="Payment facts">
+              <HumanFact label="Agent" value={selectedAgent.name} />
+              <HumanFact label="API" value={displayedAgentPlan.resource.name} />
+              <HumanFact label="Price" value={money(displayedAgentPlan.resource.priceUsd)} />
+              <HumanFact label="Wallet policy" value={humanPolicy} />
+              <HumanFact label="Receipt" value={humanReceipt} wide />
+            </div>
+
+            <div className="human-flow" aria-label="Human payment flow">
+              <HumanStep marker="1" label="Ask" detail="The agent turns your sentence into an API request." />
+              <HumanStep marker="2" label="Quote" detail="The seller returns a payment-required price." />
+              <HumanStep marker="3" label="Policy" detail="The wallet signs only if budget and allowlist pass." />
+              <HumanStep marker="4" label="Receipt" detail="The paid response is shown with an auditable id." />
+            </div>
           </div>
         </div>
+
+        <details className="technical-details" open={agentTrace.length > 0}>
+          <summary>
+            <span>Technical evidence</span>
+            <strong>Tool-call trace and agent answer</strong>
+          </summary>
+          <div className="technical-layout">
+            <div className="agent-trace" data-testid="agent-trace">
+              {(agentTrace.length > 0 ? agentTrace : starterAgentTrace()).map((step) => (
+                <AgentTraceRow key={step.id} step={step} />
+              ))}
+            </div>
+
+            <div className="agent-answer" data-testid="agent-answer">
+              <span>Agent answer</span>
+              <strong>{agentAnswer ?? "Waiting for an agent-run paid API call"}</strong>
+              <small>
+                The trace shows tool calls and observations only. It does not expose private chain-of-thought.
+              </small>
+            </div>
+          </div>
+        </details>
       </section>
 
       <section className="demo-brief" data-testid="demo-brief" aria-label="Agent payment overview">
         <div className="brief-copy">
           <p className="eyebrow">90 second demo</p>
-          <h2>An AI agent buys one paid API call. No checkout page.</h2>
+          <h2>No checkout page. Just a controlled agent payment.</h2>
           <p>
-            Watch one request move from access check, to payment challenge, to wallet signature, to
-            a merchant receipt. The left side controls the buyer. The center shows the HTTP
-            conversation. The right side shows what the seller records.
+            The default view is for people: task, price, policy, receipt. Open the workbench when
+            you want the HTTP exchange, seller ledger, API keys, and settlement evidence.
           </p>
           <div className="brief-route" aria-label="Selected payment route">
             <span>{selectedAgent.name}</span>
@@ -762,6 +803,12 @@ function App() {
           />
         </div>
       </section>
+
+      <details className="advanced-workbench" data-testid="advanced-workbench">
+        <summary data-testid="advanced-toggle">
+          <span>Protocol workbench</span>
+          <strong>Open manual controls, HTTP exchange, merchant ledger, and ops evidence</strong>
+        </summary>
 
       <section className="workspace-grid">
         <aside className="panel buyer-panel">
@@ -1174,15 +1221,77 @@ function App() {
           </div>
         </article>
       </section>
+      </details>
     </main>
   );
+}
+
+function HumanFact({ label, value, wide = false }: { label: string; value: string; wide?: boolean }) {
+  return (
+    <div className={`human-fact ${wide ? "wide" : ""}`}>
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+
+function HumanStep({ detail, label, marker }: { detail: string; label: string; marker: string }) {
+  return (
+    <div className="human-step">
+      <b>{marker}</b>
+      <span>{label}</span>
+      <small>{detail}</small>
+    </div>
+  );
+}
+
+function humanDecisionCopy(
+  answer: string | null,
+  isAgentRunning: boolean,
+  phase: Phase,
+): { detail: string; title: string; tone: "blocked" | "neutral" | "paid" | "running" } {
+  if (isAgentRunning || phase === "request" || phase === "challenge" || phase === "signature") {
+    return {
+      detail: "The agent is checking the price and wallet rules before any signed payment is sent.",
+      title: "Checking price and policy",
+      tone: "running",
+    };
+  }
+
+  if (answer?.includes("I paid")) {
+    return {
+      detail: answer,
+      title: "Paid data delivered",
+      tone: "paid",
+    };
+  }
+
+  if (answer) {
+    return {
+      detail: answer,
+      title: "Payment stopped before funds moved",
+      tone: "blocked",
+    };
+  }
+
+  return {
+    detail: "The agent will quote the API, compare price with budget, then pay or stop.",
+    title: "Ready to buy only if policy allows",
+    tone: "neutral",
+  };
 }
 
 function AgentTraceRow({ step }: { step: AgentTraceStep }) {
   return (
     <article className={`agent-trace-row ${step.status}`}>
       <div className="trace-status">
-        {step.status === "blocked" ? <XCircle size={15} /> : <CheckCircle2 size={15} />}
+        {step.status === "blocked" ? (
+          <XCircle size={15} />
+        ) : step.status === "done" ? (
+          <CheckCircle2 size={15} />
+        ) : (
+          <Clock3 size={15} />
+        )}
       </div>
       <div>
         <div className="trace-title">
