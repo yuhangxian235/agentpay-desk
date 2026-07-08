@@ -89,6 +89,34 @@
   gap: 10px;
 }
 
+.locale-toggle {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  min-width: 116px;
+  padding: 3px;
+  border: 1px solid var(--line-strong);
+  background: rgba(9, 16, 21, 0.68);
+  backdrop-filter: blur(18px);
+}
+
+.locale-toggle button {
+  min-height: 34px;
+  border: 0;
+  background: transparent;
+  color: var(--muted-strong);
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.locale-toggle button.active {
+  background:
+    linear-gradient(120deg, rgba(120, 247, 255, 0.24), rgba(216, 255, 122, 0.18)),
+    rgba(255, 255, 255, 0.1);
+  color: var(--ink);
+}
+
 .merchant-pill {
   min-height: 42px;
   padding: 0 13px;
@@ -1797,6 +1825,11 @@ textarea:focus-visible {
 
   .header-actions {
     width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .locale-toggle {
+    flex: 1 1 118px;
   }
 
   .metrics-strip,

@@ -45,6 +45,16 @@ test("agent autopilot buys a paid API through tool-call trace", async ({ page })
   await expect(page.getByText("Paid data delivered")).toBeVisible();
 });
 
+test("human-readable payment view can switch to Chinese", async ({ page }) => {
+  await page.goto("/");
+
+  await page.getByRole("button", { name: "中文" }).click();
+
+  await expect(page.getByText("这个 Agent 可以安全付款吗？")).toBeVisible();
+  await expect(page.getByText("运行 Agent 自动付款")).toBeVisible();
+  await expect(page.getByTestId("advanced-toggle")).toContainText("协议工作台");
+});
+
 test("rejected signer blocks before X-PAYMENT is attached", async ({ page }) => {
   await page.goto("/");
   await openWorkbench(page);

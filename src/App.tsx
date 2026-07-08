@@ -67,6 +67,8 @@ type Phase = "idle" | "request" | "challenge" | "signature" | "settled" | "block
 
 type SignerState = "approved" | "expired" | "pending" | "ready" | "rejected";
 
+type Locale = "en" | "zh";
+
 type PaidApiBody = {
   data?: Record<string, unknown>;
   error?: string;
@@ -102,6 +104,108 @@ const defaultStorageInfo: MerchantOpsStorageInfo = {
   label: "Pending sync",
 };
 
+const localeCopy = {
+  en: {
+    agentAnswerLabel: "Agent answer",
+    agentBuying: "Agent is buying",
+    approved: "Approved",
+    autopilotDetail:
+      "Ask in plain English, then see the price, policy decision, and receipt before the protocol logs.",
+    autopilotKicker: "Human-readable agent payment",
+    autopilotTitle: "Can this agent safely pay?",
+    brandEyebrow: "Stablecoin machine payments",
+    budgetLabel: "Budget parsed from task",
+    checking: "Checking",
+    defaultPrompt: "Get tokenized treasury yield data if the API costs less than $0.30.",
+    demoDetail:
+      "The default view is for people: task, price, policy, receipt. Open the workbench when you want the HTTP exchange, seller ledger, API keys, and settlement evidence.",
+    demoEyebrow: "90 second demo",
+    demoTitle: "No checkout page. Just a controlled agent payment.",
+    facts: {
+      agent: "Agent",
+      api: "API",
+      price: "Price",
+      receipt: "Receipt",
+      walletPolicy: "Wallet policy",
+    },
+    flow: [
+      { detail: "The agent turns your sentence into an API request.", label: "Ask" },
+      { detail: "The seller returns a payment-required price.", label: "Quote" },
+      { detail: "The wallet signs only if budget and allowlist pass.", label: "Policy" },
+      { detail: "The paid response is shown with an auditable id.", label: "Receipt" },
+    ],
+    likelyApiLabel: "Likely API",
+    notIssued: "Not issued yet",
+    promptLabel: "What should the agent get?",
+    ready: "Ready",
+    runAgent: "Run agent autopilot",
+    stopped: "Stopped",
+    story: {
+      buyerDetail: `${agents[0].name} requests ${resources[0].name} with a scoped API key.`,
+      buyerTitle: "Buyer asks for data",
+      receiptDetail:
+        "The wallet signs, the facilitator returns a receipt, and the seller records the call.",
+      receiptTitle: "Receipt unlocks payload",
+      sellerTitle: "Seller asks for payment",
+    },
+    technicalDetail: "Tool-call trace and agent answer",
+    technicalLabel: "Technical evidence",
+    traceNote:
+      "The trace shows tool calls and observations only. It does not expose private chain-of-thought.",
+    waitingAgent: "Waiting for an agent-run paid API call",
+    workbenchDetail: "Open manual controls, HTTP exchange, merchant ledger, and ops evidence",
+    workbenchLabel: "Protocol workbench",
+  },
+  zh: {
+    agentAnswerLabel: "Agent 回答",
+    agentBuying: "Agent 正在购买",
+    approved: "已通过",
+    autopilotDetail: "用自然语言提出任务，然后先看价格、策略决策和收据，再展开协议日志。",
+    autopilotKicker: "给人看的 Agent 支付",
+    autopilotTitle: "这个 Agent 可以安全付款吗？",
+    brandEyebrow: "稳定币机器支付",
+    budgetLabel: "从任务解析出的预算",
+    checking: "检查中",
+    defaultPrompt: "如果 API 价格低于 0.30 美元，就获取代币化国债收益率数据。",
+    demoDetail:
+      "默认视图给人看：任务、价格、策略、收据。需要 HTTP 交互、商户账本、API key 和结算证据时，再打开工作台。",
+    demoEyebrow: "90 秒演示",
+    demoTitle: "没有结账页，只有可控的 Agent 付款。",
+    facts: {
+      agent: "Agent",
+      api: "API",
+      price: "价格",
+      receipt: "收据",
+      walletPolicy: "钱包策略",
+    },
+    flow: [
+      { detail: "Agent 把你的句子转换成 API 请求。", label: "提问" },
+      { detail: "商户返回需要付款的报价。", label: "报价" },
+      { detail: "只有预算和白名单通过时，钱包才会签名。", label: "策略" },
+      { detail: "付费响应会带着可审计的收据编号返回。", label: "收据" },
+    ],
+    likelyApiLabel: "可能调用的 API",
+    notIssued: "尚未生成",
+    promptLabel: "你希望 Agent 获取什么？",
+    ready: "就绪",
+    runAgent: "运行 Agent 自动付款",
+    stopped: "已停止",
+    story: {
+      buyerDetail: `${agents[0].name} 使用受限 API key 请求 ${resources[0].name}。`,
+      buyerTitle: "买方请求数据",
+      receiptDetail: "钱包签名后，facilitator 返回收据，商户记录这次调用。",
+      receiptTitle: "收据解锁数据",
+      sellerTitle: "商户要求付款",
+    },
+    technicalDetail: "工具调用轨迹和 Agent 回答",
+    technicalLabel: "技术证据",
+    traceNote: "这里展示的是工具调用和观察结果，不暴露私有 chain-of-thought。",
+    waitingAgent: "等待 Agent 运行一次付费 API 调用",
+    workbenchDetail: "打开手动控制、HTTP 交互、商户账本和运维证据",
+    workbenchLabel: "协议工作台",
+  },
+} as const;
+
 type PaymentRunOptions = {
   agent?: Agent;
   resource?: ApiResource;
@@ -109,7 +213,16 @@ type PaymentRunOptions = {
   source?: "agent" | "guided";
 };
 
+function detectInitialLocale(): Locale {
+  if (typeof navigator !== "undefined" && navigator.language.toLowerCase().startsWith("zh")) {
+    return "zh";
+  }
+
+  return "en";
+}
+
 function App() {
+  const [locale, setLocale] = useState<Locale>(detectInitialLocale);
   const [selectedAgentId, setSelectedAgentId] = useState(agents[0].id);
   const [selectedResourceId, setSelectedResourceId] = useState(resources[0].id);
   const [network, setNetwork] = useState<Network>("base-sepolia");
@@ -129,8 +242,8 @@ function App() {
   const [auditEvents, setAuditEvents] = useState<MerchantAuditEvent[]>([]);
   const [opsSyncedAt, setOpsSyncedAt] = useState<string | null>(null);
   const [storageInfo, setStorageInfo] = useState<MerchantOpsStorageInfo>(defaultStorageInfo);
-  const [agentPrompt, setAgentPrompt] = useState(
-    "Get tokenized treasury yield data if the API costs less than $0.30.",
+  const [agentPrompt, setAgentPrompt] = useState<string>(
+    () => localeCopy[detectInitialLocale()].defaultPrompt,
   );
   const [agentPlan, setAgentPlan] = useState<AgentPaymentPlan | null>(null);
   const [agentTrace, setAgentTrace] = useState<AgentTraceStep[]>([]);
@@ -140,6 +253,7 @@ function App() {
   const selectedAgent = agents.find((agent) => agent.id === selectedAgentId) ?? agents[0];
   const selectedResource =
     resources.find((resource) => resource.id === selectedResourceId) ?? resources[0];
+  const copy = localeCopy[locale];
 
   const settledLedger = useMemo(
     () => ledger.filter((entry) => entry.status === "settled"),
@@ -174,16 +288,18 @@ function App() {
     [agentPrompt, ledger, network, riskSettings, selectedAgent, selectedResource.id, signerMode],
   );
   const displayedAgentPlan = agentPlan ?? agentPreviewPlan;
-  const humanDecision = humanDecisionCopy(agentAnswer, isAgentRunning, phase);
-  const humanReceipt = agentAnswer?.match(/api_[0-9a-f]+/)?.[0] ?? "Not issued yet";
+  const humanDecision = humanDecisionCopy(agentAnswer, isAgentRunning, phase, locale);
+  const displayedAgentAnswer =
+    locale === "zh" && agentAnswer ? translateAgentAnswer(agentAnswer) : agentAnswer;
+  const humanReceipt = agentAnswer?.match(/api_[0-9a-f]+/)?.[0] ?? copy.notIssued;
   const humanPolicy =
     agentAnswer === null
       ? isAgentRunning
-        ? "Checking"
-        : "Ready"
+        ? copy.checking
+        : copy.ready
       : agentAnswer.includes("I paid")
-        ? "Approved"
-        : "Stopped";
+        ? copy.approved
+        : copy.stopped;
 
   useEffect(() => {
     void refreshMerchantState();
@@ -660,17 +776,42 @@ function App() {
     }
   }
 
+  function changeLocale(nextLocale: Locale) {
+    setLocale(nextLocale);
+    setAgentPrompt((currentPrompt) =>
+      currentPrompt === localeCopy[locale].defaultPrompt
+        ? localeCopy[nextLocale].defaultPrompt
+        : currentPrompt,
+    );
+  }
+
   return (
     <main className="app-shell">
       <header className="desk-header">
         <div className="brand-lockup">
           <div className="brand-mark">402</div>
           <div>
-            <p className="eyebrow">Stablecoin machine payments</p>
+            <p className="eyebrow">{copy.brandEyebrow}</p>
             <h1>AgentPay Desk</h1>
           </div>
         </div>
         <div className="header-actions">
+          <div className="locale-toggle" role="group" aria-label="Language">
+            <button
+              className={locale === "zh" ? "active" : ""}
+              type="button"
+              onClick={() => changeLocale("zh")}
+            >
+              中文
+            </button>
+            <button
+              className={locale === "en" ? "active" : ""}
+              type="button"
+              onClick={() => changeLocale("en")}
+            >
+              EN
+            </button>
+          </div>
           <div className="merchant-pill">
             <ServerCog size={16} />
             <span>{merchant.name}</span>
@@ -684,13 +825,13 @@ function App() {
       <section className="panel autopilot-panel" data-testid="agent-autopilot">
         <PanelHeader
           icon={<Sparkles size={19} />}
-          kicker="Human-readable agent payment"
-          title="Can this agent safely pay?"
-          detail="Ask in plain English, then see the price, policy decision, and receipt before the protocol logs."
+          kicker={copy.autopilotKicker}
+          title={copy.autopilotTitle}
+          detail={copy.autopilotDetail}
         />
         <div className="autopilot-layout">
           <div className="autopilot-command">
-            <label htmlFor="agent-prompt">What should the agent get?</label>
+            <label htmlFor="agent-prompt">{copy.promptLabel}</label>
             <textarea
               data-testid="agent-prompt"
               id="agent-prompt"
@@ -699,9 +840,9 @@ function App() {
               onChange={(event) => setAgentPrompt(event.target.value)}
             />
             <div className="autopilot-policy">
-              <span>Budget parsed from task</span>
+              <span>{copy.budgetLabel}</span>
               <strong>{money(displayedAgentPlan.budgetUsd)}</strong>
-              <span>Likely API</span>
+              <span>{copy.likelyApiLabel}</span>
               <strong>{displayedAgentPlan.resource.name}</strong>
             </div>
             <button
@@ -714,7 +855,7 @@ function App() {
               disabled={isRunning}
             >
               <Play size={18} fill="currentColor" />
-              <span>{isAgentRunning ? "Agent is buying" : "Run agent autopilot"}</span>
+              <span>{isAgentRunning ? copy.agentBuying : copy.runAgent}</span>
             </button>
           </div>
 
@@ -726,26 +867,30 @@ function App() {
             </div>
 
             <div className="human-facts" aria-label="Payment facts">
-              <HumanFact label="Agent" value={selectedAgent.name} />
-              <HumanFact label="API" value={displayedAgentPlan.resource.name} />
-              <HumanFact label="Price" value={money(displayedAgentPlan.resource.priceUsd)} />
-              <HumanFact label="Wallet policy" value={humanPolicy} />
-              <HumanFact label="Receipt" value={humanReceipt} wide />
+              <HumanFact label={copy.facts.agent} value={selectedAgent.name} />
+              <HumanFact label={copy.facts.api} value={displayedAgentPlan.resource.name} />
+              <HumanFact label={copy.facts.price} value={money(displayedAgentPlan.resource.priceUsd)} />
+              <HumanFact label={copy.facts.walletPolicy} value={humanPolicy} />
+              <HumanFact label={copy.facts.receipt} value={humanReceipt} wide />
             </div>
 
             <div className="human-flow" aria-label="Human payment flow">
-              <HumanStep marker="1" label="Ask" detail="The agent turns your sentence into an API request." />
-              <HumanStep marker="2" label="Quote" detail="The seller returns a payment-required price." />
-              <HumanStep marker="3" label="Policy" detail="The wallet signs only if budget and allowlist pass." />
-              <HumanStep marker="4" label="Receipt" detail="The paid response is shown with an auditable id." />
+              {copy.flow.map((step, index) => (
+                <HumanStep
+                  detail={step.detail}
+                  key={step.label}
+                  label={step.label}
+                  marker={String(index + 1)}
+                />
+              ))}
             </div>
           </div>
         </div>
 
         <details className="technical-details" open={agentTrace.length > 0}>
           <summary>
-            <span>Technical evidence</span>
-            <strong>Tool-call trace and agent answer</strong>
+            <span>{copy.technicalLabel}</span>
+            <strong>{copy.technicalDetail}</strong>
           </summary>
           <div className="technical-layout">
             <div className="agent-trace" data-testid="agent-trace">
@@ -755,11 +900,9 @@ function App() {
             </div>
 
             <div className="agent-answer" data-testid="agent-answer">
-              <span>Agent answer</span>
-              <strong>{agentAnswer ?? "Waiting for an agent-run paid API call"}</strong>
-              <small>
-                The trace shows tool calls and observations only. It does not expose private chain-of-thought.
-              </small>
+              <span>{copy.agentAnswerLabel}</span>
+              <strong>{displayedAgentAnswer ?? copy.waitingAgent}</strong>
+              <small>{copy.traceNote}</small>
             </div>
           </div>
         </details>
@@ -767,12 +910,9 @@ function App() {
 
       <section className="demo-brief" data-testid="demo-brief" aria-label="Agent payment overview">
         <div className="brief-copy">
-          <p className="eyebrow">90 second demo</p>
-          <h2>No checkout page. Just a controlled agent payment.</h2>
-          <p>
-            The default view is for people: task, price, policy, receipt. Open the workbench when
-            you want the HTTP exchange, seller ledger, API keys, and settlement evidence.
-          </p>
+          <p className="eyebrow">{copy.demoEyebrow}</p>
+          <h2>{copy.demoTitle}</h2>
+          <p>{copy.demoDetail}</p>
           <div className="brief-route" aria-label="Selected payment route">
             <span>{selectedAgent.name}</span>
             <ArrowRight size={16} />
@@ -786,28 +926,36 @@ function App() {
           <StoryStep
             icon={<Bot size={18} />}
             marker="1"
-            title="Buyer asks for data"
-            detail={`${selectedAgent.name} requests ${selectedResource.name} with a scoped API key.`}
+            title={copy.story.buyerTitle}
+            detail={
+              locale === "zh"
+                ? `${selectedAgent.name} 使用受限 API key 请求 ${selectedResource.name}。`
+                : `${selectedAgent.name} requests ${selectedResource.name} with a scoped API key.`
+            }
           />
           <StoryStep
             icon={<LockKeyhole size={18} />}
             marker="2"
-            title="Seller asks for payment"
-            detail={`The API returns 402 because the call costs ${money(selectedResource.priceUsd)}.`}
+            title={copy.story.sellerTitle}
+            detail={
+              locale === "zh"
+                ? `API 返回 402，因为这次调用价格是 ${money(selectedResource.priceUsd)}。`
+                : `The API returns 402 because the call costs ${money(selectedResource.priceUsd)}.`
+            }
           />
           <StoryStep
             icon={<ReceiptText size={18} />}
             marker="3"
-            title="Receipt unlocks payload"
-            detail="The wallet signs, the facilitator returns a receipt, and the seller records the call."
+            title={copy.story.receiptTitle}
+            detail={copy.story.receiptDetail}
           />
         </div>
       </section>
 
       <details className="advanced-workbench" data-testid="advanced-workbench">
         <summary data-testid="advanced-toggle">
-          <span>Protocol workbench</span>
-          <strong>Open manual controls, HTTP exchange, merchant ledger, and ops evidence</strong>
+          <span>{copy.workbenchLabel}</span>
+          <strong>{copy.workbenchDetail}</strong>
         </summary>
 
       <section className="workspace-grid">
@@ -1249,36 +1397,55 @@ function humanDecisionCopy(
   answer: string | null,
   isAgentRunning: boolean,
   phase: Phase,
+  locale: Locale,
 ): { detail: string; title: string; tone: "blocked" | "neutral" | "paid" | "running" } {
+  const isZh = locale === "zh";
+
   if (isAgentRunning || phase === "request" || phase === "challenge" || phase === "signature") {
     return {
-      detail: "The agent is checking the price and wallet rules before any signed payment is sent.",
-      title: "Checking price and policy",
+      detail: isZh
+        ? "Agent 正在检查价格和钱包规则，在发送任何签名付款之前先做策略判断。"
+        : "The agent is checking the price and wallet rules before any signed payment is sent.",
+      title: isZh ? "正在检查价格和策略" : "Checking price and policy",
       tone: "running",
     };
   }
 
   if (answer?.includes("I paid")) {
     return {
-      detail: answer,
-      title: "Paid data delivered",
+      detail: isZh ? translateAgentAnswer(answer) : answer,
+      title: isZh ? "付费数据已返回" : "Paid data delivered",
       tone: "paid",
     };
   }
 
   if (answer) {
     return {
-      detail: answer,
-      title: "Payment stopped before funds moved",
+      detail: isZh ? translateAgentAnswer(answer) : answer,
+      title: isZh ? "资金移动前已停止付款" : "Payment stopped before funds moved",
       tone: "blocked",
     };
   }
 
   return {
-    detail: "The agent will quote the API, compare price with budget, then pay or stop.",
-    title: "Ready to buy only if policy allows",
+    detail: isZh
+      ? "Agent 会先获取 API 报价，与预算比较，然后决定付款或停止。"
+      : "The agent will quote the API, compare price with budget, then pay or stop.",
+    title: isZh ? "只有策略允许时才会购买" : "Ready to buy only if policy allows",
     tone: "neutral",
   };
+}
+
+function translateAgentAnswer(answer: string): string {
+  const receipt = answer.match(/api_[0-9a-f]+/)?.[0];
+
+  if (answer.includes("I paid")) {
+    return receipt
+      ? `我已完成付款并拿到付费数据。收据编号：${receipt}。`
+      : "我已完成付款并拿到付费数据。";
+  }
+
+  return answer.replace("I did not pay.", "我没有付款。");
 }
 
 function AgentTraceRow({ step }: { step: AgentTraceStep }) {
