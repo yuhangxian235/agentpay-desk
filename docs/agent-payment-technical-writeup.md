@@ -6,7 +6,7 @@ AgentPay Desk is a product prototype for a near-future workflow: autonomous agen
 - A seller API that can require payment over HTTP.
 - A wallet and policy layer that decides whether the agent is allowed to pay.
 
-The project is intentionally small enough to review quickly, but it preserves production-shaped boundaries: a protected API route, a merchant operations API route, a facilitator adapter, a 402 challenge, signer approval states, signed retry, merchant ledger, API key rotation, webhook-style reconciliation, CSV export, audit trail, and browser E2E coverage.
+The project is intentionally small enough to review quickly, but it preserves production-shaped boundaries: an agent runtime layer, a protected API route, a merchant operations API route, a facilitator adapter, a 402 challenge, signer approval states, signed retry, merchant ledger, API key rotation, webhook-style reconciliation, CSV export, audit trail, and browser E2E coverage.
 
 Live demo: https://agentpay-desk.vercel.app
 
@@ -49,6 +49,15 @@ sequenceDiagram
         Agent->>Ledger: Record held payment
     end
 ```
+
+The current UI starts with Agent Autopilot. A user enters a task like `Get tokenized treasury yield data if the API costs less than $0.30`, and the runtime produces a tool-call style trace:
+
+```text
+parse_user_goal -> list_paid_resources -> quote_paid_resource -> request_paid_resource
+-> evaluate_payment_policy -> sign_payment -> retry_with_x_payment -> return_answer
+```
+
+This is deliberately shown as tool calls and observations, not private chain-of-thought. The local runtime is deterministic so the demo works without API keys, but the boundary maps cleanly to an OpenAI tool-calling or MCP implementation.
 
 In the UI, the center panel shows this as a four-step protocol rail:
 

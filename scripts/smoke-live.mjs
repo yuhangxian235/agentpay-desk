@@ -15,6 +15,7 @@ async function main() {
 
   const script = await fetchText(new URL(scriptPath, root));
   assert(script.includes("AgentPay Desk"), "Bundle missing AgentPay Desk copy");
+  assert(script.includes("Run agent autopilot"), "Bundle missing agent autopilot copy");
   assert(script.includes("Access keys & settlement proof"), "Bundle missing Merchant ops copy");
   assert(script.includes("audit-list"), "Bundle missing merchant audit trail");
   assert(script.includes("export-ledger"), "Bundle missing CSV export test id");

@@ -1,17 +1,17 @@
 # 90-second demo walkthrough
 
-Use this as the spoken script for a short screen recording. Keep the pace calm and show the protocol panel while each line appears in the UI.
+Use this as the spoken script for a short screen recording. Keep the pace calm and show the Agent Autopilot trace first, then the protocol panel.
 
 ## Script
 
 0-10s
-AgentPay Desk is a stablecoin payment desk for AI agents that need to buy paid API resources without a human checkout flow.
+AgentPay Desk is an agent payment runtime prototype for AI agents that need to buy paid API resources without a human checkout flow.
 
 10-22s
-The buyer chooses an agent, a paid API resource, a settlement network, and a wallet signer mode. The demo keeps funds simulated, but the protocol boundaries match an x402-style integration.
+The user gives the agent a task and budget: get tokenized treasury yield data only if the API costs less than thirty cents.
 
 22-35s
-When I click Run guided payment, the first request hits the protected `/api/protected-resource` route without payment.
+When I click Run agent autopilot, the trace shows the agent parsing the task, choosing a paid API, quoting the endpoint, and calling the protected route without payment.
 
 35-45s
 The seller returns HTTP `402 Payment Required` with `X-402-Version` and an accepted USDC payment requirement.
@@ -26,18 +26,18 @@ After approval, the client attaches `X-PAYMENT` and retries the same protected r
 The API validates the payment payload and returns the paid data with `X-PAYMENT-RESPONSE`.
 
 80-90s
-The merchant ledger records either settled revenue or a held payment block, and the ledger can be exported as CSV for reconciliation.
+The agent returns the paid data with a settlement receipt, while the merchant ledger records either settled revenue or a held payment block.
 
 ## Shot list
 
-1. Start on the dashboard with Quanta Scout and Tokenized T-bill yield selected.
-2. Point at the buyer controls and Wallet signer modes.
-3. Click `Run guided payment`.
+1. Start on Agent Autopilot with the default treasury-yield prompt.
+2. Click `Run agent autopilot`.
+3. Show the tool-call trace moving from `parse_user_goal` to `return_answer`.
 4. Show the initial GET request to `/api/protected-resource`.
 5. Show the `402 Payment Required` response.
 6. Show Wallet approval pending, then signed `X-PAYMENT`.
-7. Show the final `X-PAYMENT-RESPONSE` and purchased payload.
-8. Switch signer to `Reject` and rerun.
+7. Show the final `X-PAYMENT-RESPONSE`, agent answer, and purchased payload.
+8. Switch signer to `Reject` and rerun the guided flow.
 9. Show that the merchant ledger records Held instead of settlement.
 
 ## Captioned asset

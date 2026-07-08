@@ -1,6 +1,6 @@
 # AgentPay Desk
 
-Stablecoin payment desk for AI agents buying paid API resources with an x402-style `402 Payment Required` challenge, wallet approval states, signed retry, merchant ledger, API keys, webhook reconciliation, risk controls, and a liquid-glass operations UI.
+Agent payment runtime prototype for AI agents buying paid API resources with natural-language task intake, tool-call trace, x402-style `402 Payment Required` challenges, wallet approval states, signed retry, merchant ledger, API keys, webhook reconciliation, risk controls, and a liquid-glass operations UI.
 
 Live demo: https://agentpay-desk.vercel.app
 
@@ -12,15 +12,16 @@ Live demo: https://agentpay-desk.vercel.app
 
 AI agents are starting to act like software buyers: they request data, consume APIs, and may need to pay small amounts without a human checkout flow. AgentPay Desk explores that product surface with a Web3 payment-infrastructure lens.
 
-The demo models a paid HTTP API flow:
+The demo models an agent-run paid HTTP API flow:
 
-1. An agent requests a protected API resource.
-2. The seller returns `402 Payment Required`.
-3. The wallet signer approves, rejects, or expires the payment request.
-4. The agent signs and retries with `X-PAYMENT` when approval succeeds.
-5. The seller returns data and an `X-PAYMENT-RESPONSE`.
-6. The merchant ledger records settlement, policy blocks, and signer blocks.
-7. Merchant ops tracks API keys and webhook-style reconciliation events.
+1. A user gives the agent a natural-language task and budget.
+2. The agent chooses a paid API tool and quotes the endpoint.
+3. The seller returns `402 Payment Required`.
+4. The wallet signer approves, rejects, or expires the payment request.
+5. The agent signs and retries with `X-PAYMENT` when approval succeeds.
+6. The seller returns data and an `X-PAYMENT-RESPONSE`.
+7. The merchant ledger records settlement, policy blocks, and signer blocks.
+8. Merchant ops tracks API keys and webhook-style reconciliation events.
 
 This version uses a local simulator instead of moving real USDC. That keeps the demo safe and easy to run while preserving the integration boundaries for a production x402 client, wallet signer, seller middleware, facilitator, and ledger service.
 
@@ -41,6 +42,8 @@ This version uses a local simulator instead of moving real USDC. That keeps the 
 
 ## Features
 
+- Agent Autopilot panel that turns a natural-language task into a paid API selection, budget, policy decision, signed retry, and final answer.
+- Tool-call style trace for `parse_user_goal`, `list_paid_resources`, `quote_paid_resource`, `request_paid_resource`, `evaluate_payment_policy`, `sign_payment`, `retry_with_x_payment`, and `return_answer`.
 - AI agent buyer selection with wallet balance, daily limit, trust score, and allowlist state.
 - Paid API marketplace for RWA yield data, wallet risk scoring, invoice scanning, and stablecoin route quotes.
 - Guided payment conversation panel backed by a real `/api/protected-resource` route.
@@ -55,7 +58,7 @@ This version uses a local simulator instead of moving real USDC. That keeps the 
 - Server-side merchant operations API for ledger rows, API keys, reconciliation events, CSV export, and audit trail.
 - Optional file-backed merchant ops repository for local durable storage.
 - Risk controls for allowlisting, autopay, settlement network, and per-call spend caps.
-- Unit-tested payment requirement creation, authorization payloads, facilitator receipts, signer approval states, policy blocks, merchant ops API, API key scope enforcement, reconciliation events, and settlement records.
+- Unit-tested agent runtime planning, payment requirement creation, authorization payloads, facilitator receipts, signer approval states, policy blocks, merchant ops API, API key scope enforcement, reconciliation events, and settlement records.
 - Liquid-glass responsive dashboard UI for desktop and mobile.
 
 ## Tech stack
@@ -114,12 +117,12 @@ The `Live Smoke` workflow can also be run manually and checks the production Ver
 
 ## Demo script
 
-1. Click `Run guided payment` with `Quanta Scout` selected.
-2. Point out the first unauthenticated request to `/api/protected-resource`.
-3. Show the real HTTP `402 Payment Required` response, `X-402-Version`, wallet approval, signed `X-PAYMENT` retry, and final `X-PAYMENT-RESPONSE`.
-4. Switch Wallet signer to `Reject` or `Expire` and rerun to show that failed approval stops before funds can move.
-5. Select `Edge Crawler` and run the flow again to show policy blocking for a non-allowlisted agent.
-6. Lower the spend cap below the endpoint price to show per-call risk enforcement.
+1. Start with the Agent Autopilot task: `Get tokenized treasury yield data if the API costs less than $0.30`.
+2. Click `Run agent autopilot`.
+3. Show the tool-call trace: goal parsing, paid API selection, quote, 402 request, policy decision, signed payment, retry, and final answer.
+4. Point out the real HTTP `402 Payment Required` response, `X-402-Version`, wallet approval, signed `X-PAYMENT` retry, and final `X-PAYMENT-RESPONSE`.
+5. Switch Wallet signer to `Reject` or `Expire` and rerun the guided flow to show that failed approval stops before funds can move.
+6. Select `Edge Crawler` and run the flow again to show policy blocking for a non-allowlisted agent.
 7. Show Merchant ops: API key scopes, key rotation, and webhook events for settled or held payments.
 8. Click `Export CSV` to download the merchant ledger for reconciliation.
 
@@ -127,8 +130,10 @@ The `Live Smoke` workflow can also be run manually and checks the production Ver
 
 ```text
 src/
-  App.tsx                  Dashboard, controls, protocol feed, merchant ledger
+  App.tsx                  Agent Autopilot, dashboard controls, protocol feed, merchant ledger
   App.css                  Liquid-glass payment-operations interface
+  lib/agentRuntime.ts      Agent task parser, paid-tool planner, budget policy trace
+  lib/agentRuntime.test.ts Agent runtime unit tests
   lib/protectedResourceApi.ts
                            Shared protected-resource API handler
   lib/x402Facilitator.ts   Facilitator adapter boundary and settlement receipt metadata
@@ -191,7 +196,7 @@ vercel --prod
 
 ## Resume bullets
 
-- Built an x402-style stablecoin payment desk for AI agents buying paid API resources.
+- Built an agent payment runtime prototype where an AI agent can turn a natural-language task into a paid API tool call, handle an x402-style 402 challenge, apply wallet spending policy, sign `X-PAYMENT`, retry, and return data with a settlement receipt.
 - Implemented a real protected API route with 402 challenge handling, wallet signer approval states, signed payment retry validation, facilitator receipt handling, merchant ledger, API key rotation, webhook reconciliation, and risk-policy checks in React + TypeScript.
-- Added unit and Playwright E2E tests for payment requirement creation, signer decisions, authorization payloads, protected API responses, facilitator receipts, API key scope enforcement, policy blocks, merchant ops API, API key rotation, CSV export, mobile layout, reconciliation events, audit trail, and settlement records.
+- Added unit and Playwright E2E tests for agent runtime planning, payment requirement creation, signer decisions, authorization payloads, protected API responses, facilitator receipts, API key scope enforcement, policy blocks, merchant ops API, API key rotation, CSV export, mobile layout, reconciliation events, audit trail, and settlement records.
 - Designed a liquid-glass responsive dashboard for agent budgets, USDC-style payment authorization, failed signer approvals, paid payload delivery, merchant API keys, CSV export, and reconciliation events.

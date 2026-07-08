@@ -17,17 +17,27 @@ import {
   RefreshCcw,
   ServerCog,
   ShieldCheck,
+  Sparkles,
   WalletCards,
   XCircle,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import "./App.css";
+import {
+  type AgentPaymentPlan,
+  type AgentTraceStep,
+  completeTraceStep,
+  createAgentPaymentPlan,
+  markTraceStepRunning,
+} from "./lib/agentRuntime";
 import type {
   MerchantAuditEvent,
   MerchantOpsState,
   MerchantOpsStorageInfo,
 } from "./lib/merchantOpsStore";
 import {
+  type Agent,
+  type ApiResource,
   type ExchangeLine,
   type LedgerEntry,
   type Network,
@@ -92,6 +102,13 @@ const defaultStorageInfo: MerchantOpsStorageInfo = {
   label: "Pending sync",
 };
 
+type PaymentRunOptions = {
+  agent?: Agent;
+  resource?: ApiResource;
+  riskSettings?: RiskSettings;
+  source?: "agent" | "guided";
+};
+
 function App() {
   const [selectedAgentId, setSelectedAgentId] = useState(agents[0].id);
   const [selectedResourceId, setSelectedResourceId] = useState(resources[0].id);
@@ -112,6 +129,13 @@ function App() {
   const [auditEvents, setAuditEvents] = useState<MerchantAuditEvent[]>([]);
   const [opsSyncedAt, setOpsSyncedAt] = useState<string | null>(null);
   const [storageInfo, setStorageInfo] = useState<MerchantOpsStorageInfo>(defaultStorageInfo);
+  const [agentPrompt, setAgentPrompt] = useState(
+    "Get tokenized treasury yield data if the API costs less than $0.30.",
+  );
+  const [agentPlan, setAgentPlan] = useState<AgentPaymentPlan | null>(null);
+  const [agentTrace, setAgentTrace] = useState<AgentTraceStep[]>([]);
+  const [agentAnswer, setAgentAnswer] = useState<string | null>(null);
+  const [isAgentRunning, setIsAgentRunning] = useState(false);
 
   const selectedAgent = agents.find((agent) => agent.id === selectedAgentId) ?? agents[0];
   const selectedResource =
@@ -135,15 +159,74 @@ function App() {
   const signerCopy = signerStateCopy(signerState, signerMode);
   const phaseCopy = phaseExplanation(phase);
   const reconciliationEvents = useMemo(() => buildReconciliationEvents(ledger), [ledger]);
+  const agentPreviewPlan = useMemo(
+    () =>
+      createAgentPaymentPlan({
+        agent: selectedAgent,
+        ledger,
+        network,
+        prompt: agentPrompt,
+        resources,
+        riskSettings,
+        selectedResourceId: selectedResource.id,
+        signerMode,
+      }),
+    [agentPrompt, ledger, network, riskSettings, selectedAgent, selectedResource.id, signerMode],
+  );
 
   useEffect(() => {
     void refreshMerchantState();
   }, []);
 
-  async function runPurchase() {
+  async function runAgentAutopilot() {
     if (isRunning) {
       return;
     }
+
+    const autopilotRiskSettings = {
+      ...riskSettings,
+      autopay: true,
+    };
+    const plan = createAgentPaymentPlan({
+      agent: selectedAgent,
+      ledger,
+      network,
+      prompt: agentPrompt,
+      resources,
+      riskSettings: autopilotRiskSettings,
+      selectedResourceId: selectedResource.id,
+      signerMode,
+    });
+    const agentRiskSettings = {
+      ...autopilotRiskSettings,
+      spendCapUsd: plan.budgetUsd,
+    };
+
+    setAgentPlan(plan);
+    setAgentTrace(plan.trace);
+    setAgentAnswer(null);
+    setSelectedResourceId(plan.resource.id);
+    setRiskSettings(agentRiskSettings);
+    setIsAgentRunning(true);
+
+    await sleep(300);
+    await runPurchase({
+      agent: selectedAgent,
+      resource: plan.resource,
+      riskSettings: agentRiskSettings,
+      source: "agent",
+    });
+  }
+
+  async function runPurchase(options: PaymentRunOptions = {}) {
+    if (isRunning) {
+      return;
+    }
+
+    const flowAgent = options.agent ?? selectedAgent;
+    const flowResource = options.resource ?? selectedResource;
+    const flowRiskSettings = options.riskSettings ?? riskSettings;
+    const isAgentSource = options.source === "agent";
 
     setIsRunning(true);
     setPayload(null);
@@ -151,10 +234,11 @@ function App() {
     setPhase("request");
     setSignerState("ready");
 
-    const apiUrl = protectedResourceUrl(selectedAgent.id, selectedResource.id, network);
-    const apiCredential = findDemoApiCredential(selectedResource.id);
+    const apiUrl = protectedResourceUrl(flowAgent.id, flowResource.id, network);
+    const apiCredential = findDemoApiCredential(flowResource.id);
     const apiKey = apiCredential?.secret ?? "";
 
+    markAgentTrace("request-paid-resource");
     appendExchange({
       tone: "request",
       label: "GET",
@@ -162,9 +246,9 @@ function App() {
       title: apiUrl,
       body: JSON.stringify(
         {
-          agent: selectedAgent.name,
-          route: selectedResource.path,
-          wallet: selectedAgent.wallet,
+          agent: flowAgent.name,
+          route: flowResource.path,
+          wallet: flowAgent.wallet,
           "X-API-Key": maskApiKey(apiKey),
           accept: "application/json",
           payment: null,
@@ -184,8 +268,12 @@ function App() {
     const challenge =
       challengeResponse.status === 402
         ? ((await challengeResponse.json()) as PaymentChallenge)
-        : createChallenge(selectedAgent, selectedResource, network);
+        : createChallenge(flowAgent, flowResource, network);
     setPhase("challenge");
+    completeAgentTrace("request-paid-resource", {
+      status: challengeResponse.status,
+      x402Version: challengeResponse.headers.get("X-402-Version") ?? 1,
+    });
     appendExchange({
       tone: "challenge",
       label: "402",
@@ -203,18 +291,31 @@ function App() {
     });
 
     await sleep(650);
-    const risk = evaluateRisk(selectedAgent, selectedResource, ledger, riskSettings);
+    markAgentTrace("evaluate-policy");
+    const risk = evaluateRisk(flowAgent, flowResource, ledger, flowRiskSettings);
 
     if (!risk.allowed) {
       const blocked = createLedgerEntry(
-        selectedAgent,
-        selectedResource,
+        flowAgent,
+        flowResource,
         network,
         "blocked",
         risk.note,
       );
       await persistLedgerEntry(blocked);
       setPhase("blocked");
+      completeAgentTrace(
+        "evaluate-policy",
+        {
+          decision: "blocked",
+          reason: risk.note,
+        },
+        "blocked",
+      );
+      finishAgentAnswer(
+        isAgentSource,
+        `I did not pay for ${flowResource.name}: ${risk.note}. No paid payload was released.`,
+      );
       appendExchange({
         tone: "blocked",
         label: "Policy",
@@ -223,20 +324,26 @@ function App() {
         body: JSON.stringify(
           {
             reason: risk.note,
-            spendCap: money(riskSettings.spendCapUsd),
-            allowlistedOnly: riskSettings.allowlistedOnly,
+            spendCap: money(flowRiskSettings.spendCapUsd),
+            allowlistedOnly: flowRiskSettings.allowlistedOnly,
           },
           null,
           2,
         ),
       });
-      setIsRunning(false);
+      finishRun(isAgentSource);
       return;
     }
 
     const requirement = challenge.accepts[0];
     setPhase("signature");
     setSignerState("pending");
+    completeAgentTrace("evaluate-policy", {
+      decision: "allowed",
+      price: money(flowResource.priceUsd),
+      reason: risk.note,
+    });
+    markAgentTrace("sign-payment");
     appendExchange({
       tone: "signature",
       label: "Signer",
@@ -244,9 +351,9 @@ function App() {
       body: JSON.stringify(
         {
           mode: signerMode,
-          wallet: selectedAgent.wallet,
-          amount: money(selectedResource.priceUsd),
-          resource: selectedResource.name,
+          wallet: flowAgent.wallet,
+          amount: money(flowResource.priceUsd),
+          resource: flowResource.name,
           validForSeconds: requirement.maxTimeoutSeconds,
         },
         null,
@@ -255,12 +362,12 @@ function App() {
     });
 
     await sleep(signerMode === "review" ? 900 : 450);
-    const signerDecision = evaluateSigner(signerMode, selectedAgent, selectedResource);
+    const signerDecision = evaluateSigner(signerMode, flowAgent, flowResource);
 
     if (signerDecision.status !== "approved") {
       const blocked = createLedgerEntry(
-        selectedAgent,
-        selectedResource,
+        flowAgent,
+        flowResource,
         network,
         "blocked",
         signerDecision.note,
@@ -268,6 +375,18 @@ function App() {
       await persistLedgerEntry(blocked);
       setSignerState(signerDecision.status);
       setPhase("blocked");
+      completeAgentTrace(
+        "sign-payment",
+        {
+          decision: signerDecision.status,
+          reason: signerDecision.note,
+        },
+        "blocked",
+      );
+      finishAgentAnswer(
+        isAgentSource,
+        `I stopped before payment: ${signerDecision.note}. The seller recorded a held attempt.`,
+      );
       appendExchange({
         tone: "blocked",
         label: "Signer",
@@ -281,18 +400,23 @@ function App() {
             mode: signerMode,
             status: signerDecision.status,
             reason: signerDecision.note,
-            wallet: selectedAgent.wallet,
+            wallet: flowAgent.wallet,
           },
           null,
           2,
         ),
       });
-      setIsRunning(false);
+      finishRun(isAgentSource);
       return;
     }
 
     setSignerState("approved");
-    const authorization = createAuthorization(selectedAgent, requirement);
+    const authorization = createAuthorization(flowAgent, requirement);
+    completeAgentTrace("sign-payment", {
+      decision: "approved",
+      header: "X-PAYMENT attached",
+      signer: signerDecision.note,
+    });
     appendExchange({
       tone: "signature",
       label: "X-PAYMENT",
@@ -310,6 +434,7 @@ function App() {
     });
 
     await sleep(700);
+    markAgentTrace("retry-with-payment");
     const paidResponse = await fetch(apiUrl, {
       headers: {
         Accept: "application/json",
@@ -324,13 +449,27 @@ function App() {
       `client_${Date.now().toString(16).slice(-8)}`;
     const facilitatorReceipt = paidResponse.headers.get("X-FACILITATOR-RECEIPT") ?? "local_receipt";
     const entry = {
-      ...createLedgerEntry(selectedAgent, selectedResource, network, "settled", risk.note),
+      ...createLedgerEntry(flowAgent, flowResource, network, "settled", risk.note),
       settlementRef,
     };
-    const nextPayload = paidBody.data ?? createPayload(selectedResource, settlementRef);
+    const nextPayload = paidBody.data ?? createPayload(flowResource, settlementRef);
     await persistLedgerEntry(entry);
     setPayload(nextPayload);
     setPhase("settled");
+    completeAgentTrace("retry-with-payment", {
+      facilitatorReceipt,
+      settlementRef,
+      status: paidResponse.status,
+    });
+    completeAgentTrace("return-answer", {
+      cost: money(entry.amountUsd),
+      payload: "unlocked",
+      receipt: settlementRef,
+    });
+    finishAgentAnswer(
+      isAgentSource,
+      `I paid ${money(entry.amountUsd)} for ${flowResource.name}, received ${settlementRef}, and unlocked the paid API response.`,
+    );
     appendExchange({
       tone: "success",
       label: "200",
@@ -349,7 +488,7 @@ function App() {
       ),
     });
 
-    setIsRunning(false);
+    finishRun(isAgentSource);
   }
 
   async function refreshMerchantState() {
@@ -420,6 +559,32 @@ function App() {
         ...line,
       },
     ]);
+  }
+
+  function markAgentTrace(id: string) {
+    setAgentTrace((items) => markTraceStepRunning(items, id));
+  }
+
+  function completeAgentTrace(
+    id: string,
+    output?: Record<string, unknown>,
+    status?: "blocked" | "done",
+  ) {
+    setAgentTrace((items) => completeTraceStep(items, id, output, status));
+  }
+
+  function finishAgentAnswer(isAgentSource: boolean, answer: string) {
+    if (isAgentSource) {
+      setAgentAnswer(answer);
+    }
+  }
+
+  function finishRun(isAgentSource: boolean) {
+    setIsRunning(false);
+
+    if (isAgentSource) {
+      setIsAgentRunning(false);
+    }
   }
 
   async function resetDemo() {
@@ -504,6 +669,59 @@ function App() {
           </button>
         </div>
       </header>
+
+      <section className="panel autopilot-panel" data-testid="agent-autopilot">
+        <PanelHeader
+          icon={<Sparkles size={19} />}
+          kicker="Agent runtime"
+          title="Ask the agent to buy data"
+          detail="Natural language goal, tool-call trace, payment policy, and receipt"
+        />
+        <div className="autopilot-layout">
+          <div className="autopilot-command">
+            <label htmlFor="agent-prompt">Agent task</label>
+            <textarea
+              data-testid="agent-prompt"
+              id="agent-prompt"
+              rows={4}
+              value={agentPrompt}
+              onChange={(event) => setAgentPrompt(event.target.value)}
+            />
+            <div className="autopilot-policy">
+              <span>Budget</span>
+              <strong>{money((agentPlan ?? agentPreviewPlan).budgetUsd)}</strong>
+              <span>Chosen API</span>
+              <strong>{(agentPlan ?? agentPreviewPlan).resource.name}</strong>
+            </div>
+            <button
+              className="primary-action"
+              data-testid="run-agent"
+              type="button"
+              onClick={() => {
+                void runAgentAutopilot();
+              }}
+              disabled={isRunning}
+            >
+              <Play size={18} fill="currentColor" />
+              <span>{isAgentRunning ? "Agent is buying" : "Run agent autopilot"}</span>
+            </button>
+          </div>
+
+          <div className="agent-trace" data-testid="agent-trace">
+            {(agentTrace.length > 0 ? agentTrace : starterAgentTrace()).map((step) => (
+              <AgentTraceRow key={step.id} step={step} />
+            ))}
+          </div>
+
+          <div className="agent-answer" data-testid="agent-answer">
+            <span>Agent answer</span>
+            <strong>{agentAnswer ?? "Waiting for an agent-run paid API call"}</strong>
+            <small>
+              The trace shows tool calls and observations only. It does not expose private chain-of-thought.
+            </small>
+          </div>
+        </div>
+      </section>
 
       <section className="demo-brief" data-testid="demo-brief" aria-label="Agent payment overview">
         <div className="brief-copy">
@@ -688,7 +906,9 @@ function App() {
             className="primary-action"
             data-testid="run-purchase"
             type="button"
-            onClick={runPurchase}
+            onClick={() => {
+              void runPurchase();
+            }}
             disabled={isRunning}
           >
             <Play size={18} fill="currentColor" />
@@ -956,6 +1176,51 @@ function App() {
       </section>
     </main>
   );
+}
+
+function AgentTraceRow({ step }: { step: AgentTraceStep }) {
+  return (
+    <article className={`agent-trace-row ${step.status}`}>
+      <div className="trace-status">
+        {step.status === "blocked" ? <XCircle size={15} /> : <CheckCircle2 size={15} />}
+      </div>
+      <div>
+        <div className="trace-title">
+          <span>{step.tool}</span>
+          <b>{step.status}</b>
+        </div>
+        <strong>{step.title}</strong>
+        <small>{step.detail}</small>
+        {step.output ? <pre>{JSON.stringify(step.output, null, 2)}</pre> : null}
+      </div>
+    </article>
+  );
+}
+
+function starterAgentTrace(): AgentTraceStep[] {
+  return [
+    {
+      id: "starter-parse",
+      detail: "The agent turns the sentence into a resource, budget, and payment policy.",
+      status: "pending",
+      title: "Understand the task",
+      tool: "parse_user_goal",
+    },
+    {
+      id: "starter-request",
+      detail: "The agent calls the paid API, receives HTTP 402, signs if policy allows, and retries.",
+      status: "pending",
+      title: "Call paid tools",
+      tool: "request_paid_resource",
+    },
+    {
+      id: "starter-answer",
+      detail: "The agent returns data with the cost and settlement receipt.",
+      status: "pending",
+      title: "Return paid result",
+      tool: "return_answer",
+    },
+  ];
 }
 
 function StoryStep({

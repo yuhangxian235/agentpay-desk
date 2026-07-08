@@ -27,6 +27,19 @@ test("auto signer completes the x402 payment flow", async ({ page }) => {
   await expect(page.getByTestId("audit-list")).toContainText("ledger.appended");
 });
 
+test("agent autopilot buys a paid API through tool-call trace", async ({ page }) => {
+  await page.goto("/");
+
+  await page.getByTestId("run-agent").click();
+
+  await expect(page.getByTestId("agent-trace")).toContainText("parse_user_goal");
+  await expect(page.getByTestId("agent-trace")).toContainText("request_paid_resource");
+  await expect(page.getByTestId("agent-trace")).toContainText("retry_with_x_payment");
+  await expect(page.getByTestId("agent-answer")).toContainText("I paid");
+  await expect(page.getByTestId("agent-answer")).toContainText(/api_[0-9a-f]+/);
+  await expect(page.getByTestId("payload-panel")).toContainText("tokenized_treasuries");
+});
+
 test("rejected signer blocks before X-PAYMENT is attached", async ({ page }) => {
   await page.goto("/");
 
